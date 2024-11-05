@@ -1,0 +1,17 @@
+{% extends 'patient_records/base.html' %}
+
+{% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}
+
+{% block content %}
+<h1>{{ form_title|default:"Data Entry" }}</h1>
+
+{% if patient %}
+<p>Patient ID: {{ patient.id }}</p>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save</button>
+</form>
+{% endblock %}

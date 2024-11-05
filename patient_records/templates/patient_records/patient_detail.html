@@ -1,0 +1,53 @@
+{% extends 'patient_records/base.html' %}
+
+{% block title %}Patient Details{% endblock %}
+
+{% block content %}
+<h1>Patient Details</h1>
+
+<div class="patient-info">
+    <h2>Demographics</h2>
+    <p>ID: {{ patient.id }}</p>
+    <p>Date: {{ patient.date }}</p>
+    <p>POA Name: {{ patient.poa_name }}</p>
+    <p>Contact: {{ patient.poa_contact }}</p>
+    <!-- Add more demographic fields as needed -->
+</div>
+
+<div class="actions">
+    <h2>Add Information</h2>
+    <ul>
+        <li><a href="{% url 'add_diagnosis' patient.id %}">Add Diagnosis</a></li>
+        <li><a href="{% url 'add_vitals' patient.id %}">Add Vitals</a></li>
+        <li><a href="{% url 'add_labs' patient.id %}">Add Labs</a></li>
+        <li><a href="{% url 'add_medications' patient.id %}">Add Medications</a></li>
+        <li><a href="{% url 'add_measurements' patient.id %}">Add Measurements</a></li>
+        <li><a href="{% url 'add_symptoms' patient.id %}">Add Symptoms</a></li>
+    </ul>
+</div>
+
+<!-- Display sections for each type of data -->
+<div class="data-sections">
+    <h2>Recent Data</h2>
+    
+    {% if diagnoses %}
+    <h3>Diagnoses</h3>
+    <ul>
+        {% for diagnosis in diagnoses %}
+        <li>{{ diagnosis.date }} - {{ diagnosis.diagnosis }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if vitals %}
+    <h3>Recent Vitals</h3>
+    <ul>
+        {% for vital in vitals %}
+        <li>{{ vital.date }} - BP: {{ vital.blood_pressure }}, Temp: {{ vital.temperature }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Add similar sections for other data types -->
+</div>
+{% endblock %}
