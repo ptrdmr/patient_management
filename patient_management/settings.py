@@ -122,3 +122,14 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Add these settings
+LOGIN_REDIRECT_URL = 'home'
+LOGIN_URL = 'login'
+LOGOUT_REDIRECT_URL = 'login'
+
+# Optional: If you want to redirect users to login when session expires
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# Add or update these settings
+SESSION_COOKIE_AGE = 3600  # Session expires after 1 hour (in seconds)

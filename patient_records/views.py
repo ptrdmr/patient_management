@@ -3,23 +3,35 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from .models import *
 from .forms import *  # We'll create these forms next
+import datetime
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView
+from django.contrib.auth import logout
+from django.urls import reverse_lazy
 
+@login_required
 def home(request):
     """Home page view"""
     return render(request, 'patient_records/home.html')
 
+@login_required
 def add_patient(request):
     """Add new patient demographics"""
     if request.method == 'POST':
         form = PatientForm(request.POST)
         if form.is_valid():
             patient = form.save()
-            AuditTrail.objects.create(patient=patient, action='Created', user=request.user)
+            AuditTrail.objects.create(
+                patient=patient, 
+                action='CREATE', 
+                user=request.user
+            )
             return redirect('patient_detail', patient_id=patient.id)
     else:
-        form = PatientForm()
+        form = PatientForm(initial={'date': datetime.date.today()})
     return render(request, 'patient_records/add_patient.html', {'form': form})
 
+@login_required
 def patient_list(request):
     """View list of all patients"""
     search_query = request.GET.get('search', '')
@@ -39,6 +51,7 @@ def patient_list(request):
 
     return render(request, 'patient_records/patient_list.html', {'patients': page_obj, 'is_paginated': paginator.num_pages > 1, 'page_obj': page_obj})
 
+@login_required
 def patient_detail(request, patient_id):
     """View detailed patient information"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -46,6 +59,7 @@ def patient_detail(request, patient_id):
 
     return render(request, 'patient_records/patient_detail.html', {'patient': patient, 'audit_entries': audit_entries})
 
+@login_required
 def add_diagnosis(request, patient_id):
     """Add diagnosis for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -61,6 +75,7 @@ def add_diagnosis(request, patient_id):
         form = DiagnosisForm(initial={'patient': patient})
     return render(request, 'patient_records/add_diagnosis.html', {'form': form, 'patient': patient})
 
+@login_required
 def add_vitals(request, patient_id):
     """Add vitals for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -76,6 +91,7 @@ def add_vitals(request, patient_id):
         form = VitalsForm(initial={'patient': patient})
     return render(request, 'patient_records/add_vitals.html', {'form': form, 'patient': patient})
 
+@login_required
 def add_labs(request, patient_id):
     """Add lab results for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -100,6 +116,7 @@ def add_labs(request, patient_id):
         'patient': patient
     })
 
+@login_required
 def add_medications(request, patient_id):
     """Add medications for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -115,6 +132,7 @@ def add_medications(request, patient_id):
         form = MedicationsForm(initial={'patient': patient})
     return render(request, 'patient_records/add_medications.html', {'form': form, 'patient': patient})
 
+@login_required
 def add_measurements(request, patient_id):
     """Add measurements for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -130,6 +148,7 @@ def add_measurements(request, patient_id):
         form = MeasurementsForm(initial={'patient': patient})
     return render(request, 'patient_records/add_measurements.html', {'form': form, 'patient': patient})
 
+@login_required
 def add_adls(request, patient_id):
     """Add ADLs for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -145,6 +164,7 @@ def add_adls(request, patient_id):
         form = AdlsForm(initial={'patient': patient})
     return render(request, 'patient_records/add_adls.html', {'form': form, 'patient': patient})
 
+@login_required
 def add_symptoms(request, patient_id):
     """Add symptoms for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -160,6 +180,7 @@ def add_symptoms(request, patient_id):
         form = SymptomsForm(initial={'patient': patient})
     return render(request, 'patient_records/add_symptoms.html', {'form': form, 'patient': patient})
 
+@login_required
 def add_occurrence(request, patient_id):
     """Add occurrence for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -175,6 +196,7 @@ def add_occurrence(request, patient_id):
         form = OccurrencesForm(initial={'patient': patient})
     return render(request, 'patient_records/add_occurrence.html', {'form': form, 'patient': patient})
 
+@login_required
 def add_imaging(request, patient_id):
     """Add imaging for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -190,6 +212,7 @@ def add_imaging(request, patient_id):
         form = ImagingForm(initial={'patient': patient})
     return render(request, 'patient_records/add_imaging.html', {'form': form, 'patient': patient})
 
+@login_required
 def add_provider(request):
     """Add new provider"""
     if request.method == 'POST':
@@ -202,11 +225,13 @@ def add_provider(request):
         form = ProviderForm()
     return render(request, 'patient_records/add_provider.html', {'form': form})
 
+@login_required
 def provider_list(request):
     """View list of all providers"""
     providers = Provider.objects.all().order_by('provider')
     return render(request, 'patient_records/provider_list.html', {'providers': providers})
 
+@login_required
 def add_record_request(request, patient_id):
     """Add record request for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
@@ -221,3 +246,18 @@ def add_record_request(request, patient_id):
     else:
         form = RecordRequestLogForm(initial={'patient': patient})
     return render(request, 'patient_records/add_record_request.html', {'form': form, 'patient': patient})
+
+class CustomLoginView(LoginView):
+    template_name = 'registration/login.html'
+    
+    def get_success_url(self):
+        return '/home/'  # Return absolute URL
+    
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('/home/')  # Use absolute URL
+        return super().get(request, *args, **kwargs)
+
+def custom_logout(request):
+    logout(request)
+    return redirect('login')

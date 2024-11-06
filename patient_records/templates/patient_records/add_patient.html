@@ -3,12 +3,153 @@
 {% block title %}Add New Patient{% endblock %}
 
 {% block content %}
+<!-- Breadcrumbs -->
+<div class="breadcrumbs">
+    <a href="{% url 'home' %}">Home</a> > 
+    <a href="{% url 'patient_list' %}">Patients</a> > 
+    Add New Patient
+</div>
+
 <h1>Add New Patient</h1>
 
-<form method="post">
+<form method="post" onsubmit="return confirmSubmission()">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save Patient</button>
-    <a href="{% url 'patient_list' %}">Cancel</a>
+    
+    {% if form.errors %}
+    <div class="form-errors">
+        Please correct the following errors:
+        {{ form.errors }}
+    </div>
+    {% endif %}
+
+    <!-- Basic Information -->
+    <h2>Basic Information</h2>
+    <div class="form-group">
+        {{ form.date.label_tag }}
+        {{ form.date }}
+    </div>
+
+    <div class="form-group">
+        {{ form.first_name.label_tag }}
+        {{ form.first_name }}
+    </div>
+
+    <div class="form-group">
+        {{ form.middle_name.label_tag }}
+        {{ form.middle_name }}
+    </div>
+
+    <div class="form-group">
+        {{ form.last_name.label_tag }}
+        {{ form.last_name }}
+    </div>
+
+    <div class="form-group">
+        {{ form.date_of_birth.label_tag }}
+        {{ form.date_of_birth }}
+    </div>
+
+    <div class="form-group">
+        {{ form.gender.label_tag }}
+        {{ form.gender }}
+    </div>
+
+    <div class="form-group">
+        {{ form.ssn.label_tag }}
+        {{ form.ssn }}
+    </div>
+
+    <!-- Medical Information -->
+    <h2>Medical Information</h2>
+    <div class="form-group">
+        {{ form.allergies.label_tag }}
+        {{ form.allergies }}
+    </div>
+
+    <div class="form-group">
+        {{ form.code_status.label_tag }}
+        {{ form.code_status }}
+    </div>
+
+    <div class="form-group">
+        {{ form.height_cm.label_tag }}
+        {{ form.height_cm }}
+    </div>
+
+    <div class="form-group">
+        {{ form.height_inches.label_tag }}
+        {{ form.height_inches }}
+    </div>
+
+    <!-- POA Information -->
+    <h2>Power of Attorney Information</h2>
+    <div class="form-group">
+        {{ form.poa_name.label_tag }}
+        {{ form.poa_name }}
+    </div>
+
+    <div class="form-group">
+        {{ form.relationship.label_tag }}
+        {{ form.relationship }}
+    </div>
+
+    <div class="form-group">
+        {{ form.poa_contact.label_tag }}
+        {{ form.poa_contact }}
+    </div>
+
+    <!-- Additional Information -->
+    <h2>Additional Information</h2>
+    <div class="form-group">
+        {{ form.veteran.label_tag }}
+        {{ form.veteran }}
+    </div>
+
+    <div class="form-group">
+        {{ form.veteran_spouse.label_tag }}
+        {{ form.veteran_spouse }}
+    </div>
+
+    <div class="form-group">
+        {{ form.marital_status.label_tag }}
+        {{ form.marital_status }}
+    </div>
+
+    <!-- Contact Information -->
+    <h2>Contact Information</h2>
+    <div class="form-group">
+        {{ form.street_address.label_tag }}
+        {{ form.street_address }}
+    </div>
+
+    <div class="form-group">
+        {{ form.city.label_tag }}
+        {{ form.city }}
+    </div>
+
+    <div class="form-group">
+        {{ form.state.label_tag }}
+        {{ form.state }}
+    </div>
+
+    <div class="form-group">
+        {{ form.zip.label_tag }}
+        {{ form.zip }}
+    </div>
+
+    <div class="form-group">
+        {{ form.patient_phone.label_tag }}
+        {{ form.patient_phone }}
+    </div>
+
+    <div class="form-group">
+        {{ form.patient_email.label_tag }}
+        {{ form.patient_email }}
+    </div>
+
+    <div class="form-actions">
+        <button type="submit">Save Patient</button>
+        <a href="{% url 'patient_list' %}" class="button secondary">Cancel</a>
+    </div>
 </form>
 {% endblock %}

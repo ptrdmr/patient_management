@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     # Home page
-    path('', views.home, name='home'),
+    path('home/', views.home, name='home'),
     
     # Patient related URLs
     path('patient/add/', views.add_patient, name='add_patient'),

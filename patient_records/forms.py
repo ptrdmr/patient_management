@@ -125,5 +125,21 @@ class PatientForm(forms.ModelForm):
         fields = [
             'date', 'allergies', 'code_status', 'poa_name', 'relationship', 
             'poa_contact', 'veteran', 'veteran_spouse', 'marital_status', 
-            'street_address', 'city', 'state', 'zip', 'patient_phone', 'patient_email'
+            'street_address', 'city', 'state', 'zip', 'patient_phone', 'patient_email',
+            'first_name', 'middle_name', 'last_name', 'date_of_birth', 
+            'gender', 'ssn', 'height_cm', 'height_inches'
         ]
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'ssn': forms.TextInput(attrs={'pattern': r'\d{3}-\d{2}-\d{4}', 'placeholder': 'XXX-XX-XXXX'}),
+            'height_cm': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'height_inches': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+        }
+
+    def clean_ssn(self):
+        ssn = self.cleaned_data['ssn']
+        # Remove any existing hyphens and add them back in correct positions
+        ssn = ''.join(c for c in ssn if c.isdigit())
+        if len(ssn) != 9:
+            raise forms.ValidationError("SSN must be 9 digits")
+        return f"{ssn[:3]}-{ssn[3:5]}-{ssn[5:]}"

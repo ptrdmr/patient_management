@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+import datetime
 
 class Provider(models.Model):
     id = models.AutoField(primary_key=True)
@@ -18,6 +19,12 @@ class Provider(models.Model):
         return self.provider
 
 class Patient(models.Model):
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+        ('O', 'Other'),
+    ]
+
     id = models.AutoField(primary_key=True)
     date = models.DateField()
     allergies = models.TextField(blank=True, null=True)
@@ -36,9 +43,44 @@ class Patient(models.Model):
     patient_email = models.EmailField(blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)
     modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    patient_number = models.CharField(max_length=10, unique=True, editable=False, null=True, blank=True)
+    first_name = models.CharField(max_length=50, null=True, blank=True)
+    middle_name = models.CharField(max_length=50, blank=True, null=True)
+    last_name = models.CharField(max_length=50, null=True, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True, blank=True)
+    ssn = models.CharField(max_length=11, verbose_name="SSN", null=True, blank=True)
+    height_cm = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Height (cm)", null=True, blank=True)
+    height_inches = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Height (inches)", null=True, blank=True)
 
     def __str__(self):
-        return f"Patient {self.id}"
+        if self.first_name and self.last_name:
+            return f"{self.last_name}, {self.first_name} ({self.patient_number})"
+        return f"Patient {self.patient_number}"
+
+    def save(self, *args, **kwargs):
+        # Generate patient number if not exists
+        if not self.patient_number:
+            year = datetime.datetime.now().year
+            last_patient = Patient.objects.filter(
+                patient_number__startswith=f"{year}"
+            ).order_by('-patient_number').first()
+            
+            if last_patient:
+                last_number = int(last_patient.patient_number[4:])
+                new_number = last_number + 1
+            else:
+                new_number = 1
+            
+            self.patient_number = f"{year}{new_number:06d}"
+        
+        # Height conversion logic - updated to handle Decimal types
+        if self.height_cm and not self.height_inches:
+            self.height_inches = float(self.height_cm) / 2.54
+        elif self.height_inches and not self.height_cm:
+            self.height_cm = float(self.height_inches) * 2.54
+        
+        super().save(*args, **kwargs)
 
 class Diagnosis(models.Model):
     id = models.CharField(max_length=100, primary_key=True)
