@@ -1,15 +1,7 @@
 from django import forms
 from .models import *
 
-class PatientDemographicsForm(forms.ModelForm):
-    class Meta:
-        model = PatientDemographics
-        fields = '__all__'
-        widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'veteran': forms.CheckboxInput(),
-            'veteran_spouse': forms.CheckboxInput(),
-        }
+
 
 class ProviderForm(forms.ModelForm):
     class Meta:
@@ -22,7 +14,7 @@ class ProviderForm(forms.ModelForm):
 class DiagnosisForm(forms.ModelForm):
     class Meta:
         model = Diagnosis
-        fields = '__all__'
+        fields = ['date', 'diagnosis', 'icd_code', 'source']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
         }
