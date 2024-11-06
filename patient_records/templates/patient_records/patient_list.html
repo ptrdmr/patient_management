@@ -4,12 +4,25 @@
 
 {% block content %}
 <h1>Patient List</h1>
+
+<!-- Search and Filter Form -->
+<form method="get" action="{% url 'patient_list' %}">
+    <input type="text" name="search" placeholder="Search by ID or POA name" value="{{ request.GET.search }}">
+    <select name="sort">
+        <option value="date" {% if request.GET.sort == 'date' %}selected{% endif %}>Date</option>
+        <option value="id" {% if request.GET.sort == 'id' %}selected{% endif %}>ID</option>
+        <option value="poa_name" {% if request.GET.sort == 'poa_name' %}selected{% endif %}>POA Name</option>
+    </select>
+    <button type="submit">Search</button>
+</form>
+
 <table>
     <thead>
         <tr>
             <th>ID</th>
             <th>Date</th>
             <th>POA Name</th>
+            <th>Last Updated</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -19,15 +32,37 @@
             <td>{{ patient.id }}</td>
             <td>{{ patient.date }}</td>
             <td>{{ patient.poa_name }}</td>
+            <td>{{ patient.last_updated|date:"Y-m-d H:i" }}</td>
             <td>
                 <a href="{% url 'patient_detail' patient.id %}">View Details</a>
             </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="4">No patients found.</td>
+            <td colspan="5">No patients found.</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<div class="pagination">
+    <span class="step-links">
+        {% if page_obj.has_previous %}
+            <a href="?page=1">&laquo; first</a>
+            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+        {% endif %}
+
+        <span class="current">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}">next</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+        {% endif %}
+    </span>
+</div>
+{% endif %}
 {% endblock %}

@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class PatientDemographics(models.Model):
     id = models.CharField(max_length=100, primary_key=True)
@@ -178,3 +179,42 @@ class RecordRequestLog(models.Model):
     processed_date = models.DateField(null=True, blank=True)
     processed_by = models.CharField(max_length=200)
     status = models.CharField(max_length=100)
+
+class Patient(models.Model):
+    id = models.AutoField(primary_key=True)
+    date = models.DateField()
+    allergies = models.TextField(blank=True, null=True)
+    code_status = models.CharField(max_length=50, blank=True, null=True)
+    poa_name = models.CharField(max_length=100)
+    relationship = models.CharField(max_length=50, blank=True, null=True)
+    poa_contact = models.CharField(max_length=100)
+    veteran = models.BooleanField(default=False)
+    veteran_spouse = models.BooleanField(default=False)
+    marital_status = models.CharField(max_length=50, blank=True, null=True)
+    street_address = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    state = models.CharField(max_length=100, blank=True, null=True)
+    zip = models.CharField(max_length=20, blank=True, null=True)
+    patient_phone = models.CharField(max_length=20, blank=True, null=True)
+    patient_email = models.EmailField(blank=True, null=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"Patient {self.id}"
+
+class AuditTrail(models.Model):
+    ACTION_CHOICES = [
+        ('CREATE', 'Create'),
+        ('UPDATE', 'Update'),
+        ('DELETE', 'Delete'),
+    ]
+
+    patient = models.ForeignKey('Patient', on_delete=models.CASCADE)
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    changes = models.JSONField(default=dict)  # Provide a default empty dictionary
+
+    def __str__(self):
+        return f"{self.action} by {self.user} on {self.timestamp}"

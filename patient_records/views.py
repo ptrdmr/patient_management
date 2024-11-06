@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.core.paginator import Paginator
 from .models import *
 from .forms import *  # We'll create these forms next
 
@@ -10,42 +11,44 @@ def home(request):
 def add_patient(request):
     """Add new patient demographics"""
     if request.method == 'POST':
-        form = PatientDemographicsForm(request.POST)
+        form = PatientForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Patient demographics saved successfully!')
-            return redirect('patient_list')
+            patient = form.save()
+            AuditTrail.objects.create(patient=patient, action='Created', user=request.user)
+            return redirect('patient_detail', patient_id=patient.id)
     else:
-        form = PatientDemographicsForm()
+        form = PatientForm()
     return render(request, 'patient_records/add_patient.html', {'form': form})
 
 def patient_list(request):
     """View list of all patients"""
-    patients = PatientDemographics.objects.all().order_by('-date')
-    return render(request, 'patient_records/patient_list.html', {'patients': patients})
+    search_query = request.GET.get('search', '')
+    sort_option = request.GET.get('sort', 'date')
+
+    patients = Patient.objects.all()
+
+    if search_query:
+        patients = patients.filter(poa_name__icontains=search_query) | patients.filter(id__icontains=search_query)
+
+    if sort_option:
+        patients = patients.order_by(sort_option)
+
+    paginator = Paginator(patients, 10)  # Show 10 patients per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'patient_records/patient_list.html', {'patients': page_obj, 'is_paginated': paginator.num_pages > 1, 'page_obj': page_obj})
 
 def patient_detail(request, patient_id):
     """View detailed patient information"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
-    context = {
-        'patient': patient,
-        'diagnoses': Diagnosis.objects.filter(patient=patient),
-        'visits': Visits.objects.filter(patient=patient),
-        'vitals': Vitals.objects.filter(patient=patient),
-        'cmp_labs': CmpLabs.objects.filter(patient=patient),
-        'cbc_labs': CbcLabs.objects.filter(patient=patient),
-        'symptoms': Symptoms.objects.filter(patient=patient),
-        'medications': Medications.objects.filter(patient=patient),
-        'measurements': Measurements.objects.filter(patient=patient),
-        'imaging': Imaging.objects.filter(patient=patient),
-        'adls': Adls.objects.filter(patient=patient),
-        'occurrences': Occurrences.objects.filter(patient=patient),
-    }
-    return render(request, 'patient_records/patient_detail.html', context)
+    patient = get_object_or_404(Patient, id=patient_id)
+    audit_entries = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')[:5]
+
+    return render(request, 'patient_records/patient_detail.html', {'patient': patient, 'audit_entries': audit_entries})
 
 def add_diagnosis(request, patient_id):
     """Add diagnosis for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = DiagnosisForm(request.POST)
         if form.is_valid():
@@ -60,7 +63,7 @@ def add_diagnosis(request, patient_id):
 
 def add_vitals(request, patient_id):
     """Add vitals for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = VitalsForm(request.POST)
         if form.is_valid():
@@ -75,7 +78,7 @@ def add_vitals(request, patient_id):
 
 def add_labs(request, patient_id):
     """Add lab results for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         cmp_form = CmpLabsForm(request.POST, prefix='cmp')
         cbc_form = CbcLabsForm(request.POST, prefix='cbc')
@@ -99,7 +102,7 @@ def add_labs(request, patient_id):
 
 def add_medications(request, patient_id):
     """Add medications for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = MedicationsForm(request.POST)
         if form.is_valid():
@@ -114,7 +117,7 @@ def add_medications(request, patient_id):
 
 def add_measurements(request, patient_id):
     """Add measurements for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = MeasurementsForm(request.POST)
         if form.is_valid():
@@ -129,7 +132,7 @@ def add_measurements(request, patient_id):
 
 def add_adls(request, patient_id):
     """Add ADLs for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = AdlsForm(request.POST)
         if form.is_valid():
@@ -144,7 +147,7 @@ def add_adls(request, patient_id):
 
 def add_symptoms(request, patient_id):
     """Add symptoms for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = SymptomsForm(request.POST)
         if form.is_valid():
@@ -159,7 +162,7 @@ def add_symptoms(request, patient_id):
 
 def add_occurrence(request, patient_id):
     """Add occurrence for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = OccurrencesForm(request.POST)
         if form.is_valid():
@@ -174,7 +177,7 @@ def add_occurrence(request, patient_id):
 
 def add_imaging(request, patient_id):
     """Add imaging for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = ImagingForm(request.POST)
         if form.is_valid():
@@ -206,7 +209,7 @@ def provider_list(request):
 
 def add_record_request(request, patient_id):
     """Add record request for a patient"""
-    patient = get_object_or_404(PatientDemographics, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id)
     if request.method == 'POST':
         form = RecordRequestLogForm(request.POST)
         if form.is_valid():

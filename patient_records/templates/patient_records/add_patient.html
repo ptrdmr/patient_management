@@ -1,23 +1,14 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Add Patient</title>
-</head>
-<body>
-    <h1>Add New Patient</h1>
-    
-    {% if messages %}
-    <ul class="messages">
-        {% for message in messages %}
-        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
+{% extends 'patient_records/generic_form.html' %}
 
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Save Patient</button>
-    </form>
-</body>
-</html>
+{% block title %}Add New Patient{% endblock %}
+
+{% block content %}
+<h1>Add New Patient</h1>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save Patient</button>
+    <a href="{% url 'patient_list' %}">Cancel</a>
+</form>
+{% endblock %}

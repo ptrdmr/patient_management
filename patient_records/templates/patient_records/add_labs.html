@@ -1,0 +1,21 @@
+{% extends 'patient_records/generic_form.html' %}
+
+{% block title %}Add Lab Results{% endblock %}
+
+{% block content %}
+<h1>Add Lab Results</h1>
+<p>Patient ID: {{ patient.id }}</p>
+
+<h2>CMP Labs</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ cmp_form.as_p }}
+    
+    <h2>CBC Labs</h2>
+    {{ cbc_form.as_p }}
+    
+    <button type="submit">Save Lab Results</button>
+</form>
+
+<p><a href="{% url 'patient_detail' patient.id %}">Back to Patient Details</a></p>
+{% endblock %}

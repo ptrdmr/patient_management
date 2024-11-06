@@ -126,3 +126,12 @@ class RecordRequestLogForm(forms.ModelForm):
             'received_on': forms.DateInput(attrs={'type': 'date'}),
             'processed_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
+class PatientForm(forms.ModelForm):
+    class Meta:
+        model = Patient
+        fields = [
+            'date', 'allergies', 'code_status', 'poa_name', 'relationship', 
+            'poa_contact', 'veteran', 'veteran_spouse', 'marital_status', 
+            'street_address', 'city', 'state', 'zip', 'patient_phone', 'patient_email'
+        ]
