@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.contrib.auth import logout
 from django.urls import reverse_lazy
+from django.http import JsonResponse
 
 @login_required
 def home(request):
@@ -509,3 +510,19 @@ class CustomLoginView(LoginView):
 def custom_logout(request):
     logout(request)
     return redirect('login')
+
+def form_view(request):
+    if request.method == 'POST':
+        form = YourForm(request.POST)
+        if form.is_valid():
+            form.save()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'redirect_url': reverse('success_url')
+                })
+            return redirect('success_url')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'errors': form.errors}, status=400)
+    
+    # ... rest of your view code

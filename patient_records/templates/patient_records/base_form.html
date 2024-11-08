@@ -1,0 +1,249 @@
+{% extends 'patient_records/base.html' %}
+
+{% block content %}
+{% include 'components/_breadcrumbs.html' %}
+
+{% if patient %}
+    {% include 'components/_patient_header.html' %}
+{% endif %}
+
+<h1>{{ form_title|default:"Data Entry" }}</h1>
+
+<form method="post" id="ajax-form" class="form" novalidate>
+    {% csrf_token %}
+    
+    {% block form_errors %}
+        <div class="form-errors" style="display: none;">
+            <div class="alert alert-danger">
+                <ul class="error-list"></ul>
+            </div>
+        </div>
+    {% endblock %}
+    
+    {% block form_content %}
+        {% if form.sections %}
+            {% for section in form.sections %}
+                <fieldset class="form-section" id="section-{{ forloop.counter }}">
+                    {% if section.title %}
+                        <legend>{{ section.title }}</legend>
+                    {% endif %}
+                    
+                    {% if section.description %}
+                        <div class="section-description">{{ section.description }}</div>
+                    {% endif %}
+                    
+                    <div class="section-fields">
+                        {% for field in section.fields %}
+                            <div class="field-wrapper">
+                                {{ field }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+            {% endfor %}
+        {% else %}
+            {% for field in form %}
+                <div class="field-wrapper">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="help-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                        <div class="field-error">
+                            {{ field.errors|join:", " }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endblock %}
+    
+    <div class="form-actions">
+        <button type="submit" class="btn primary">{{ submit_label|default:"Save" }}</button>
+        <a href="{{ cancel_url|default:'javascript:history.back()' }}" class="btn secondary">Cancel</a>
+    </div>
+</form>
+
+{% block form_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('ajax-form');
+    const errorDiv = form.querySelector('.form-errors');
+    const errorList = errorDiv.querySelector('.error-list');
+
+    // Add validation feedback elements to all fields
+    form.querySelectorAll('input, select, textarea').forEach(field => {
+        const wrapper = field.closest('.field-wrapper');
+        if (!wrapper.querySelector('.field-error')) {
+            wrapper.insertAdjacentHTML('beforeend', '<div class="field-error"></div>');
+        }
+    });
+
+    // Validate individual fields on blur
+    form.addEventListener('blur', function(e) {
+        if (e.target.matches('input, select, textarea')) {
+            validateField(e.target);
+        }
+    }, true);
+
+    // Validate field as user types (for certain fields)
+    form.addEventListener('input', function(e) {
+        if (e.target.matches('input[type="email"], input[type="tel"], input[pattern]')) {
+            validateField(e.target);
+        }
+    });
+
+    function validateField(field) {
+        const wrapper = field.closest('.field-wrapper');
+        const errorElement = wrapper.querySelector('.field-error');
+        let isValid = true;
+        let errorMessage = '';
+
+        // Clear previous validation state
+        field.classList.remove('is-invalid', 'is-valid');
+        errorElement.textContent = '';
+
+        // Required field validation
+        if (field.required && !field.value.trim()) {
+            isValid = false;
+            errorMessage = 'This field is required';
+        }
+
+        // Email validation
+        if (field.type === 'email' && field.value) {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(field.value)) {
+                isValid = false;
+                errorMessage = 'Please enter a valid email address';
+            }
+        }
+
+        // Pattern validation
+        if (field.pattern && field.value) {
+            const pattern = new RegExp(field.pattern);
+            if (!pattern.test(field.value)) {
+                isValid = false;
+                errorMessage = field.dataset.patternError || 'Please match the requested format';
+            }
+        }
+
+        // Custom validation based on data attributes
+        if (field.dataset.minLength && field.value.length < parseInt(field.dataset.minLength)) {
+            isValid = false;
+            errorMessage = `Minimum length is ${field.dataset.minLength} characters`;
+        }
+
+        // Update UI
+        field.classList.add(isValid ? 'is-valid' : 'is-invalid');
+        errorElement.textContent = errorMessage;
+        
+        return isValid;
+    }
+
+    // Enhanced form submission with validation
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Clear previous errors
+        errorDiv.style.display = 'none';
+        errorList.innerHTML = '';
+        
+        // Validate all fields
+        let isFormValid = true;
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+            if (!validateField(field)) {
+                isFormValid = false;
+            }
+        });
+
+        if (!isFormValid) {
+            errorDiv.style.display = 'block';
+            errorList.innerHTML = '<li>Please correct the errors in the form before submitting.</li>';
+            // Scroll to first error
+            const firstError = form.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
+        try {
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            } else {
+                // Handle server-side validation errors
+                errorDiv.style.display = 'block';
+                if (data.errors) {
+                    Object.entries(data.errors).forEach(([field, errors]) => {
+                        const li = document.createElement('li');
+                        li.textContent = `${field}: ${errors.join(', ')}`;
+                        errorList.appendChild(li);
+                        
+                        // Highlight invalid field
+                        const fieldElement = form.querySelector(`[name="${field}"]`);
+                        if (fieldElement) {
+                            fieldElement.classList.add('is-invalid');
+                            const wrapper = fieldElement.closest('.field-wrapper');
+                            const errorElement = wrapper.querySelector('.field-error');
+                            if (errorElement) {
+                                errorElement.textContent = errors[0];
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Form submission error:', error);
+            errorDiv.style.display = 'block';
+            errorList.innerHTML = '<li>An unexpected error occurred. Please try again.</li>';
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.field-wrapper {
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.field-error {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.is-valid {
+    border-color: #198754;
+}
+
+.form-errors {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: #f8d7da;
+    border: 1px solid #f5c2c7;
+    border-radius: 0.25rem;
+    color: #842029;
+}
+</style>
+{% endblock %}
+{% endblock %} 

@@ -1,3 +1,32 @@
-{% extends 'patient_records/generic_form.html' %}
+{% extends 'patient_records/base_form.html' %}
+{% load form_tags %}
 
-{% block title %}Add Medication{% endblock %}
+{% block title %}Add Medications{% endblock %}
+
+{% block form_content %}
+    {% for section in form.sections %}
+        <fieldset class="form-section">
+            <legend>{{ section.title }}</legend>
+            {% if section.description %}
+                <div class="section-description">{{ section.description }}</div>
+            {% endif %}
+            
+            {% for field_name in section.fields %}
+                {% with field=form|get_field:field_name %}
+                <div class="field-wrapper">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="help-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                        <div class="field-error">
+                            {{ field.errors|join:", " }}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endwith %}
+            {% endfor %}
+        </fieldset>
+    {% endfor %}
+{% endblock %}

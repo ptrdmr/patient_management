@@ -1,39 +1,18 @@
-{% extends 'patient_records/base.html' %}
+{% extends 'patient_records/base_form.html' %}
 
-{% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}
-
-{% block content %}
-{% include 'components/_breadcrumbs.html' %}
-
-{% if patient %}
-    {% include 'components/_patient_header.html' %}
-{% endif %}
-
-<h1>{{ form_title|default:"Data Entry" }}</h1>
-
-<form method="post" onsubmit="return confirmSubmission()">
-    {% csrf_token %}
-    
-    {% if form.errors %}
-    <div class="form-errors">
-        Please correct the following errors:
-        {{ form.errors }}
+{% block form_content %}
+    {% for field in form %}
+    <div class="field-wrapper">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}
+            <div class="help-text">{{ field.help_text }}</div>
+        {% endif %}
+        {% if field.errors %}
+            <div class="field-error">
+                {{ field.errors|join:", " }}
+            </div>
+        {% endif %}
     </div>
-    {% endif %}
-    
-    {{ form.as_p }}
-    
-    <button type="submit">Save</button>
-    {% if patient %}
-        <a href="{% url 'patient_detail' patient.id %}">Cancel</a>
-    {% else %}
-        <a href="{% url 'home' %}">Cancel</a>
-    {% endif %}
-</form>
-
-<script>
-function confirmSubmission() {
-    return confirm('Are you sure you want to submit this form?');
-}
-</script>
+    {% endfor %}
 {% endblock %}

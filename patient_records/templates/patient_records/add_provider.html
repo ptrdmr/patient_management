@@ -1,37 +1,85 @@
-{% extends 'patient_records/generic_form.html' %}
+{% extends 'patient_records/base_form.html' %}
+{% load form_tags %}  {# Add this line at the top #}
 
 {% block title %}Add Provider{% endblock %}
 
 {% block form_content %}
-    <div class="form-group">
-        <label for="{{ form.name.id_for_label }}">Provider Name:</label>
-        {{ form.name }}
-        {% if form.name.errors %}
-            <div class="form-error">{{ form.name.errors }}</div>
-        {% endif %}
-    </div>
+    {% for section in form.sections %}
+        <fieldset class="form-section">
+            <legend>{{ section.title }}</legend>
+            {% if section.description %}
+                <div class="section-description">{{ section.description }}</div>
+            {% endif %}
+            
+            {% for field_name in section.fields %}
+                {% with field=form|get_field:field_name %}
+                <div class="field-wrapper">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="help-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                        <div class="field-error">
+                            {{ field.errors|join:", " }}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endwith %}
+            {% endfor %}
+        </fieldset>
+    {% endfor %}
+{% endblock %}
 
-    <div class="form-group">
-        <label for="{{ form.specialty.id_for_label }}">Specialty:</label>
-        {{ form.specialty }}
-        {% if form.specialty.errors %}
-            <div class="form-error">{{ form.specialty.errors }}</div>
-        {% endif %}
-    </div>
+{% block extra_css %}
+{{ block.super }}
+<style>
+    .form-section {
+        margin-bottom: 2rem;
+        padding: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
 
-    <div class="form-group">
-        <label for="{{ form.contact.id_for_label }}">Contact Information:</label>
-        {{ form.contact }}
-        {% if form.contact.errors %}
-            <div class="form-error">{{ form.contact.errors }}</div>
-        {% endif %}
-    </div>
+    .form-section legend {
+        font-weight: bold;
+        font-size: 1.1em;
+        padding: 0 0.5rem;
+    }
 
-    <div class="form-group">
-        <label for="{{ form.notes.id_for_label }}">Notes:</label>
-        {{ form.notes }}
-        {% if form.notes.errors %}
-            <div class="form-error">{{ form.notes.errors }}</div>
-        {% endif %}
-    </div>
+    .section-description {
+        color: #666;
+        margin-bottom: 1rem;
+        font-size: 0.9em;
+    }
+
+    .field-wrapper {
+        margin-bottom: 1rem;
+    }
+
+    .field-wrapper label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .field-wrapper input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .help-text {
+        color: #666;
+        font-size: 0.8em;
+        margin-top: 0.25rem;
+    }
+
+    .field-error {
+        color: #dc3545;
+        font-size: 0.8em;
+        margin-top: 0.25rem;
+    }
+</style>
 {% endblock %} 

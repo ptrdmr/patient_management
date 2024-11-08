@@ -1,25 +1,188 @@
-{% extends 'patient_records/base_multi_form.html' %}
+{% extends 'patient_records/base.html' %}
+{% load form_tags %}
 
 {% block title %}Add Lab Results{% endblock %}
 
-{% block form_errors %}
-    {% if cmp_form.errors or cbc_form.errors %}
-    <div class="form-errors">
-        Please correct the following errors:
-        {{ cmp_form.errors }}
-        {{ cbc_form.errors }}
-    </div>
+{% block content %}
+    {% if patient %}
+        {% include 'components/_patient_header.html' %}
     {% endif %}
-{% endblock %}
 
-{% block form_sections %}
-    <div class="lab-section">
-        <h2>CMP Labs</h2>
-        {{ cmp_form.as_p }}
+    <h1>{{ form_title|default:"Add Lab Results" }}</h1>
+
+    <div class="lab-tabs">
+        <div class="tab-buttons">
+            <button type="button" class="tab-button active" data-tab="cmp">CMP Labs</button>
+            <button type="button" class="tab-button" data-tab="cbc">CBC Labs</button>
+        </div>
+
+        {# CMP Labs Tab #}
+        <div class="tab-content active" id="cmp-tab">
+            <form method="post" class="lab-form" id="cmp-form">
+                {% csrf_token %}
+                <input type="hidden" name="lab_type" value="cmp">
+                <fieldset class="form-section">
+                    <legend>Comprehensive Metabolic Panel (CMP)</legend>
+                    <div class="section-description">Complete metabolic panel blood test results</div>
+                    
+                    {% for section in cmp_form.sections %}
+                        <div class="subsection">
+                            <h3>{{ section.title }}</h3>
+                            {% if section.description %}
+                                <div class="section-description">{{ section.description }}</div>
+                            {% endif %}
+                            
+                            {% for field_name in section.fields %}
+                                {% with field=cmp_form|get_field:field_name %}
+                                <div class="field-wrapper">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                        <div class="help-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="field-error">
+                                            {{ field.errors|join:", " }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% endwith %}
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn primary">Save CMP Results</button>
+                        <a href="{{ cancel_url }}" class="btn secondary">Cancel</a>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+
+        {# CBC Labs Tab #}
+        <div class="tab-content" id="cbc-tab">
+            <form method="post" class="lab-form" id="cbc-form">
+                {% csrf_token %}
+                <input type="hidden" name="lab_type" value="cbc">
+                <fieldset class="form-section">
+                    <legend>Complete Blood Count (CBC)</legend>
+                    <div class="section-description">Complete blood count test results</div>
+                    
+                    {% for section in cbc_form.sections %}
+                        <div class="subsection">
+                            <h3>{{ section.title }}</h3>
+                            {% if section.description %}
+                                <div class="section-description">{{ section.description }}</div>
+                            {% endif %}
+                            
+                            {% for field_name in section.fields %}
+                                {% with field=cbc_form|get_field:field_name %}
+                                <div class="field-wrapper">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                        <div class="help-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="field-error">
+                                            {{ field.errors|join:", " }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% endwith %}
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn primary">Save CBC Results</button>
+                        <a href="{{ cancel_url }}" class="btn secondary">Cancel</a>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
     </div>
-    
-    <div class="lab-section">
-        <h2>CBC Labs</h2>
-        {{ cbc_form.as_p }}
-    </div>
+
+    {% block extra_css %}
+    {{ block.super }}
+    <style>
+        .lab-tabs {
+            margin-top: 1rem;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            background: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: #6c757d;
+        }
+
+        .tab-button:hover {
+            color: #495057;
+            border-color: #e9ecef #e9ecef #dee2e6;
+        }
+
+        .tab-button.active {
+            color: #495057;
+            background: #fff;
+            border-color: #dee2e6 #dee2e6 #fff;
+            margin-bottom: -1px;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .subsection {
+            margin: 1rem 0;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .subsection h3 {
+            margin-top: 0;
+            color: #495057;
+            font-size: 1.1em;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Remove active class from all buttons and contents
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+
+                    // Add active class to clicked button and corresponding content
+                    button.classList.add('active');
+                    document.getElementById(`${button.dataset.tab}-tab`).classList.add('active');
+                });
+            });
+        });
+    </script>
+    {% endblock %}
 {% endblock %}
