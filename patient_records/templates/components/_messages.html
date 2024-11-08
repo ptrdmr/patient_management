@@ -1,0 +1,7 @@
+<ul class="messages"></ul>
+    {% for message in messages %}
+    <li class="{{ message.tags }}">
+        {{ message }}
+    </li>
+    {% endfor %}
+</ul>

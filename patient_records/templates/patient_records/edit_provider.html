@@ -1,0 +1,37 @@
+{% extends 'patient_records/generic_form.html' %}
+
+{% block title %}Edit Provider{% endblock %}
+
+{% block form_content %}
+    <div class="form-group">
+        <label for="{{ form.name.id_for_label }}">Provider Name:</label>
+        {{ form.name }}
+        {% if form.name.errors %}
+            <div class="form-error">{{ form.name.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.specialty.id_for_label }}">Specialty:</label>
+        {{ form.specialty }}
+        {% if form.specialty.errors %}
+            <div class="form-error">{{ form.specialty.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.contact.id_for_label }}">Contact Information:</label>
+        {{ form.contact }}
+        {% if form.contact.errors %}
+            <div class="form-error">{{ form.contact.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.notes.id_for_label }}">Notes:</label>
+        {{ form.notes }}
+        {% if form.notes.errors %}
+            <div class="form-error">{{ form.notes.errors }}</div>
+        {% endif %}
+    </div>
+{% endblock %} 

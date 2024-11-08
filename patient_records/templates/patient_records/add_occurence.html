@@ -1,12 +1,3 @@
 {% extends 'patient_records/generic_form.html' %}
 
 {% block title %}Add Occurrence{% endblock %}
-
-{% block content %}
-<h1>Add Occurrence</h1>
-<p>Patient ID: {{ patient.id }}</p>
-
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save Occurrence

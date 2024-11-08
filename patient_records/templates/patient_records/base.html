@@ -5,18 +5,33 @@
     <style>
         .messages {
             list-style: none;
-            padding: 10px;
+            padding: 0;
             margin: 10px 0;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 4px;
         }
         .messages .success {
             background-color: #dff0d8;
-            border: 1px solid #d6e9c6;
             color: #3c763d;
+            border: 1px solid #d6e9c6;
         }
         .messages .error {
             background-color: #f2dede;
-            border: 1px solid #ebccd1;
             color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        .messages .info {
+            background-color: #d9edf7;
+            color: #31708f;
+            border: 1px solid #bce8f1;
+        }
+        .messages .warning {
+            background-color: #fcf8e3;
+            color: #8a6d3b;
+            border: 1px solid #faebcc;
         }
         nav {
             background-color: #f8f9fa;
@@ -31,29 +46,65 @@
         .content {
             padding: 20px;
         }
+        .user-nav {
+            float: right;
+        }
+        .user-nav span {
+            margin-right: 15px;
+        }
+        .patient-header {
+            background-color: #e9ecef;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .patient-header h2 {
+            margin-top: 0;
+        }
+        /* Form section styles */
+        .form-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .form-section h2 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            color: #495057;
+        }
+        
+        .lab-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        
+        .form-actions {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .button.secondary {
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.25rem;
+            margin-left: 0.5rem;
+        }
     </style>
 </head>
 <body>
-    {% if user.is_authenticated %}
-        <nav>
-            <a href="{% url 'home' %}">Home</a>
-            <a href="{% url 'patient_list' %}">Patients</a>
-            <a href="{% url 'add_patient' %}">Add Patient</a>
-            <a href="{% url 'provider_list' %}">Providers</a>
-            <div class="user-nav">
-                <span>Welcome, {{ user.username }}</span>
-                <a href="{% url 'logout' %}">Logout</a>
-            </div>
-        </nav>
-    {% endif %}
+    {% include 'components/_navigation.html' %}
 
     <div class="content">
         {% if messages %}
-        <ul class="messages">
-            {% for message in messages %}
-            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-            {% endfor %}
-        </ul>
+            {% include 'components/_messages.html' %}
         {% endif %}
 
         {% block content %}

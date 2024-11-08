@@ -1,0 +1,45 @@
+{% extends 'patient_records/base.html' %}
+
+{% block title %}Providers{% endblock %}
+
+{% block content %}
+{% include 'components/_breadcrumbs.html' %}
+
+<div class="content-header">
+    <h1>Providers</h1>
+    <a href="{% url 'add_provider' %}" class="button">Add New Provider</a>
+</div>
+
+<div class="provider-list">
+    {% if providers %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Provider Name</th>
+                    <th>Practice</th>
+                    <th>Location</th>
+                    <th>Phone</th>
+                    <th>Fax</th>
+                    <th><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for provider in providers %}
+                <tr>
+                    <td>{{ provider.provider }}</td>
+                    <td>{{ provider.practice }}</td>
+                    <td>{{ provider.city }}, {{ provider.state }}</td>
+                    <td>{{ provider.phone|default:"-" }}</td>
+                    <td>{{ provider.fax|default:"-" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'edit_provider' provider.id %}" class="action-link">Edit</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No providers found.</p>
+    {% endif %}
+</div>
+{% endblock %} 

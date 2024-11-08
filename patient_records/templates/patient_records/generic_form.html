@@ -3,19 +3,13 @@
 {% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}
 
 {% block content %}
-<!-- Breadcrumbs -->
-<div class="breadcrumbs">
-    <a href="{% url 'home' %}">Home</a> > 
-    <a href="{% url 'patient_list' %}">Patients</a> > 
-    <a href="{% url 'patient_detail' patient.id %}">Patient {{ patient.id }}</a> >
-    {{ form_title|default:"Data Entry" }}
-</div>
-
-<h1>{{ form_title|default:"Data Entry" }}</h1>
+{% include 'components/_breadcrumbs.html' %}
 
 {% if patient %}
-<p>Patient ID: {{ patient.id }}</p>
+    {% include 'components/_patient_header.html' %}
 {% endif %}
+
+<h1>{{ form_title|default:"Data Entry" }}</h1>
 
 <form method="post" onsubmit="return confirmSubmission()">
     {% csrf_token %}
@@ -30,7 +24,11 @@
     {{ form.as_p }}
     
     <button type="submit">Save</button>
-    <a href="{% url 'patient_detail' patient.id %}">Cancel</a>
+    {% if patient %}
+        <a href="{% url 'patient_detail' patient.id %}">Cancel</a>
+    {% else %}
+        <a href="{% url 'home' %}">Cancel</a>
+    {% endif %}
 </form>
 
 <script>

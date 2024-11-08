@@ -1,21 +1,25 @@
-{% extends 'patient_records/generic_form.html' %}
+{% extends 'patient_records/base_multi_form.html' %}
 
 {% block title %}Add Lab Results{% endblock %}
 
-{% block content %}
-<h1>Add Lab Results</h1>
-<p>Patient ID: {{ patient.id }}</p>
+{% block form_errors %}
+    {% if cmp_form.errors or cbc_form.errors %}
+    <div class="form-errors">
+        Please correct the following errors:
+        {{ cmp_form.errors }}
+        {{ cbc_form.errors }}
+    </div>
+    {% endif %}
+{% endblock %}
 
-<h2>CMP Labs</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ cmp_form.as_p }}
+{% block form_sections %}
+    <div class="lab-section">
+        <h2>CMP Labs</h2>
+        {{ cmp_form.as_p }}
+    </div>
     
-    <h2>CBC Labs</h2>
-    {{ cbc_form.as_p }}
-    
-    <button type="submit">Save Lab Results</button>
-</form>
-
-<p><a href="{% url 'patient_detail' patient.id %}">Back to Patient Details</a></p>
+    <div class="lab-section">
+        <h2>CBC Labs</h2>
+        {{ cbc_form.as_p }}
+    </div>
 {% endblock %}

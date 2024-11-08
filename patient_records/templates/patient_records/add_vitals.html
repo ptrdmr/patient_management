@@ -1,13 +1,3 @@
 {% extends 'patient_records/generic_form.html' %}
 
 {% block title %}Add Vitals{% endblock %}
-
-{% block content %}
-<h1>Add Vitals for Patient</h1>
-<p>Patient ID: {{ patient.id }}</p>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save Vitals</button>
-</form>
-{% endblock %}

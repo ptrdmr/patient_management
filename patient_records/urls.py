@@ -24,7 +24,5 @@ urlpatterns = [
     # Provider related URLs
     path('provider/add/', views.add_provider, name='add_provider'),
     path('providers/', views.provider_list, name='provider_list'),
-    
-    # Record request URLs
-    path('patient/<str:patient_id>/record-request/add/', views.add_record_request, name='add_record_request'),
+    path('provider/<int:provider_id>/edit/', views.edit_provider, name='edit_provider'),
 ]

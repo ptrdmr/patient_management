@@ -1,155 +1,117 @@
-{% extends 'patient_records/generic_form.html' %}
+{% extends 'patient_records/base_sectioned_form.html' %}
 
 {% block title %}Add New Patient{% endblock %}
 
-{% block content %}
-<!-- Breadcrumbs -->
-<div class="breadcrumbs">
-    <a href="{% url 'home' %}">Home</a> > 
-    <a href="{% url 'patient_list' %}">Patients</a> > 
-    Add New Patient
-</div>
-
-<h1>Add New Patient</h1>
-
-<form method="post" onsubmit="return confirmSubmission()">
-    {% csrf_token %}
-    
-    {% if form.errors %}
-    <div class="form-errors">
-        Please correct the following errors:
-        {{ form.errors }}
-    </div>
-    {% endif %}
-
-    <!-- Basic Information -->
-    <h2>Basic Information</h2>
-    <div class="form-group">
-        {{ form.date.label_tag }}
-        {{ form.date }}
-    </div>
-
-    <div class="form-group">
-        {{ form.first_name.label_tag }}
-        {{ form.first_name }}
-    </div>
-
-    <div class="form-group">
-        {{ form.middle_name.label_tag }}
-        {{ form.middle_name }}
+{% block form_sections %}
+    <div class="form-section">
+        <h2>Basic Information</h2>
+        <div class="form-group">
+            <label for="{{ form.date.id_for_label }}">Date:</label>
+            {{ form.date }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.first_name.id_for_label }}">First Name:</label>
+            {{ form.first_name }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.middle_name.id_for_label }}">Middle Name:</label>
+            {{ form.middle_name }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.last_name.id_for_label }}">Last Name:</label>
+            {{ form.last_name }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.date_of_birth.id_for_label }}">Date of Birth:</label>
+            {{ form.date_of_birth }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.gender.id_for_label }}">Gender:</label>
+            {{ form.gender }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.ssn.id_for_label }}">SSN:</label>
+            {{ form.ssn }}
+        </div>
     </div>
 
-    <div class="form-group">
-        {{ form.last_name.label_tag }}
-        {{ form.last_name }}
+    <div class="form-section">
+        <h2>Medical Information</h2>
+        <div class="form-group">
+            <label for="{{ form.allergies.id_for_label }}">Allergies:</label>
+            {{ form.allergies }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.code_status.id_for_label }}">Code Status:</label>
+            {{ form.code_status }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.height_cm.id_for_label }}">Height (cm):</label>
+            {{ form.height_cm }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.height_inches.id_for_label }}">Height (inches):</label>
+            {{ form.height_inches }}
+        </div>
     </div>
 
-    <div class="form-group">
-        {{ form.date_of_birth.label_tag }}
-        {{ form.date_of_birth }}
+    <div class="form-section">
+        <h2>Power of Attorney Information</h2>
+        <div class="form-group">
+            <label for="{{ form.poa_name.id_for_label }}">POA Name:</label>
+            {{ form.poa_name }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.relationship.id_for_label }}">Relationship:</label>
+            {{ form.relationship }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.poa_contact.id_for_label }}">POA Contact:</label>
+            {{ form.poa_contact }}
+        </div>
     </div>
 
-    <div class="form-group">
-        {{ form.gender.label_tag }}
-        {{ form.gender }}
+    <div class="form-section">
+        <h2>Additional Information</h2>
+        <div class="form-group">
+            <label for="{{ form.veteran.id_for_label }}">Veteran:</label>
+            {{ form.veteran }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.veteran_spouse.id_for_label }}">Veteran Spouse:</label>
+            {{ form.veteran_spouse }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.marital_status.id_for_label }}">Marital Status:</label>
+            {{ form.marital_status }}
+        </div>
     </div>
 
-    <div class="form-group">
-        {{ form.ssn.label_tag }}
-        {{ form.ssn }}
+    <div class="form-section">
+        <h2>Contact Information</h2>
+        <div class="form-group">
+            <label for="{{ form.street_address.id_for_label }}">Street Address:</label>
+            {{ form.street_address }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.city.id_for_label }}">City:</label>
+            {{ form.city }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.state.id_for_label }}">State:</label>
+            {{ form.state }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.zip.id_for_label }}">ZIP:</label>
+            {{ form.zip }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.patient_phone.id_for_label }}">Phone:</label>
+            {{ form.patient_phone }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.patient_email.id_for_label }}">Email:</label>
+            {{ form.patient_email }}
+        </div>
     </div>
-
-    <!-- Medical Information -->
-    <h2>Medical Information</h2>
-    <div class="form-group">
-        {{ form.allergies.label_tag }}
-        {{ form.allergies }}
-    </div>
-
-    <div class="form-group">
-        {{ form.code_status.label_tag }}
-        {{ form.code_status }}
-    </div>
-
-    <div class="form-group">
-        {{ form.height_cm.label_tag }}
-        {{ form.height_cm }}
-    </div>
-
-    <div class="form-group">
-        {{ form.height_inches.label_tag }}
-        {{ form.height_inches }}
-    </div>
-
-    <!-- POA Information -->
-    <h2>Power of Attorney Information</h2>
-    <div class="form-group">
-        {{ form.poa_name.label_tag }}
-        {{ form.poa_name }}
-    </div>
-
-    <div class="form-group">
-        {{ form.relationship.label_tag }}
-        {{ form.relationship }}
-    </div>
-
-    <div class="form-group">
-        {{ form.poa_contact.label_tag }}
-        {{ form.poa_contact }}
-    </div>
-
-    <!-- Additional Information -->
-    <h2>Additional Information</h2>
-    <div class="form-group">
-        {{ form.veteran.label_tag }}
-        {{ form.veteran }}
-    </div>
-
-    <div class="form-group">
-        {{ form.veteran_spouse.label_tag }}
-        {{ form.veteran_spouse }}
-    </div>
-
-    <div class="form-group">
-        {{ form.marital_status.label_tag }}
-        {{ form.marital_status }}
-    </div>
-
-    <!-- Contact Information -->
-    <h2>Contact Information</h2>
-    <div class="form-group">
-        {{ form.street_address.label_tag }}
-        {{ form.street_address }}
-    </div>
-
-    <div class="form-group">
-        {{ form.city.label_tag }}
-        {{ form.city }}
-    </div>
-
-    <div class="form-group">
-        {{ form.state.label_tag }}
-        {{ form.state }}
-    </div>
-
-    <div class="form-group">
-        {{ form.zip.label_tag }}
-        {{ form.zip }}
-    </div>
-
-    <div class="form-group">
-        {{ form.patient_phone.label_tag }}
-        {{ form.patient_phone }}
-    </div>
-
-    <div class="form-group">
-        {{ form.patient_email.label_tag }}
-        {{ form.patient_email }}
-    </div>
-
-    <div class="form-actions">
-        <button type="submit">Save Patient</button>
-        <a href="{% url 'patient_list' %}" class="button secondary">Cancel</a>
-    </div>
-</form>
 {% endblock %}

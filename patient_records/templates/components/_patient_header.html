@@ -1,0 +1,14 @@
+<div class="patient-header"></div>
+    <h2>Patient {{ patient.id }}: {{ patient.first_name }} {{ patient.last_name }}</h2>
+    <p>
+        DOB: {{ patient.date_of_birth|date:"M d, Y" }} |
+        Gender: {{ patient.get_gender_display }} |
+        SSN: {{ patient.ssn }}
+    </p>
+    {% if patient.allergies %}
+    <p><strong>Allergies:</strong> {{ patient.allergies }}</p>
+    {% endif %}
+    {% if patient.code_status %}
+    <p><strong>Code Status:</strong> {{ patient.code_status }}</p>
+    {% endif %}
+</div>

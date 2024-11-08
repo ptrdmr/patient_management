@@ -1,16 +1,3 @@
 {% extends 'patient_records/generic_form.html' %}
 
 {% block title %}Add Symptoms{% endblock %}
-
-{% block content %}
-<h1>Add Symptoms</h1>
-<p>Patient ID: {{ patient.id }}</p>
-
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save Symptoms</button>
-</form>
-
-<p><a href="{% url 'patient_detail' patient.id %}">Back to Patient Details</a></p>
-{% endblock %}
