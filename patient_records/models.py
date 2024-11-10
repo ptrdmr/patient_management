@@ -82,13 +82,23 @@ class Patient(models.Model):
         
         super().save(*args, **kwargs)
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
 class Diagnosis(models.Model):
-    id = models.CharField(max_length=100, primary_key=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    icd_code = models.CharField(max_length=10)
+    diagnosis = models.CharField(max_length=255)
     date = models.DateField()
-    diagnosis = models.CharField(max_length=200)
-    icd_code = models.CharField(max_length=20)
-    source = models.CharField(max_length=100)
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "diagnoses"
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.icd_code} - {self.diagnosis}"
 
 class Visits(models.Model):
     id = models.CharField(max_length=100, primary_key=True)
@@ -114,46 +124,44 @@ class Vitals(models.Model):
     source = models.CharField(max_length=100)
 
 class CmpLabs(models.Model):
-    id = models.CharField(max_length=100, primary_key=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     date = models.DateField()
-    bun = models.FloatField()
-    globulin = models.FloatField()
-    ag_ratio = models.FloatField()
-    alk_phos = models.FloatField()
-    ast = models.FloatField()
-    alt = models.FloatField()
-    sodium = models.FloatField()
-    calcium = models.FloatField()
-    protein = models.FloatField()
-    albumin = models.FloatField()
-    bilirubin = models.FloatField()
-    gfr = models.FloatField()
-    potassium = models.FloatField()
-    chloride = models.FloatField()
-    co2 = models.FloatField()
-    glucose = models.FloatField()
-    creatinine = models.FloatField()
+    sodium = models.DecimalField(max_digits=5, decimal_places=2)
+    potassium = models.DecimalField(max_digits=5, decimal_places=2)
+    chloride = models.DecimalField(max_digits=5, decimal_places=2)
+    co2 = models.DecimalField(max_digits=5, decimal_places=2)
+    glucose = models.DecimalField(max_digits=5, decimal_places=2)
+    bun = models.DecimalField(max_digits=5, decimal_places=2)
+    creatinine = models.DecimalField(max_digits=5, decimal_places=2)
+    calcium = models.DecimalField(max_digits=5, decimal_places=2)
+    protein = models.DecimalField(max_digits=5, decimal_places=2)
+    albumin = models.DecimalField(max_digits=5, decimal_places=2)
+    bilirubin = models.DecimalField(max_digits=5, decimal_places=2)
+    gfr = models.DecimalField(max_digits=5, decimal_places=2)
+
+    def __str__(self):
+        return f"CMP Labs - {self.patient} - {self.date}"
 
 class CbcLabs(models.Model):
-    id = models.CharField(max_length=100, primary_key=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     date = models.DateField()
-    rbc = models.FloatField()
-    wbc = models.FloatField()
-    hemoglobin = models.FloatField()
-    hematocrit = models.FloatField()
-    mcv = models.FloatField()
-    mchc = models.FloatField()
-    rdw = models.FloatField()
-    platelets = models.IntegerField()
-    mch = models.FloatField()
-    erythrocyte_mcv = models.FloatField()
-    neutrophils = models.FloatField()
-    lymphocytes = models.FloatField()
-    monocytes = models.FloatField()
-    eosinophils = models.FloatField()
-    basophils = models.FloatField()
+    rbc = models.DecimalField(max_digits=5, decimal_places=2)
+    wbc = models.DecimalField(max_digits=5, decimal_places=2)
+    hemoglobin = models.DecimalField(max_digits=5, decimal_places=2)
+    hematocrit = models.DecimalField(max_digits=5, decimal_places=2)
+    mcv = models.DecimalField(max_digits=5, decimal_places=2)
+    mchc = models.DecimalField(max_digits=5, decimal_places=2)
+    rdw = models.DecimalField(max_digits=5, decimal_places=2)
+    platelets = models.DecimalField(max_digits=7, decimal_places=2)
+    mch = models.DecimalField(max_digits=5, decimal_places=2)
+    neutrophils = models.DecimalField(max_digits=5, decimal_places=2)
+    lymphocytes = models.DecimalField(max_digits=5, decimal_places=2)
+    monocytes = models.DecimalField(max_digits=5, decimal_places=2)
+    eosinophils = models.DecimalField(max_digits=5, decimal_places=2)
+    basophils = models.DecimalField(max_digits=5, decimal_places=2)
+
+    def __str__(self):
+        return f"CBC Labs - {self.patient} - {self.date}"
 
 class Symptoms(models.Model):
     id = models.CharField(max_length=100, primary_key=True)
@@ -245,3 +253,4 @@ class AuditTrail(models.Model):
 
     def __str__(self):
         return f"{self.action} by {self.user} on {self.timestamp}"
+

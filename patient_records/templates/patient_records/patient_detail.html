@@ -1,88 +1,636 @@
 {% extends 'patient_records/base.html' %}
 
-{% block title %}Patient Details{% endblock %}
-
 {% block content %}
-<!-- Breadcrumbs -->
-<div class="breadcrumbs">
-    <a href="{% url 'home' %}">Home</a> > 
-    <a href="{% url 'patient_list' %}">Patients</a> > 
-    Patient {{ patient.id }}
+{% csrf_token %}
+<div class="patient-details">
+    <h1>Patient Details</h1>
+
+    <!-- Basic Patient Information -->
+    <section class="info-section">
+        <h2>Basic Information</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>Name:</label>
+                <span>{{ patient.first_name }} {{ patient.middle_name }} {{ patient.last_name }}</span>
+            </div>
+            <div class="info-item">
+                <label>Date of Birth:</label>
+                <span>{{ patient.date_of_birth }}</span>
+            </div>
+            <div class="info-item">
+                <label>Gender:</label>
+                <span>{{ patient.get_gender_display }}</span>
+            </div>
+            <div class="info-item">
+                <label>SSN:</label>
+                <span>{{ patient.ssn }}</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Clinical Data -->
+    <section class="info-section">
+        <h2>Clinical Data</h2>
+        <div class="action-buttons">
+            <a href="{% url 'add_diagnosis' patient.id %}" class="btn">Add Diagnosis</a>
+            <a href="{% url 'add_vitals' patient.id %}" class="btn">Add Vitals</a>
+            <a href="{% url 'add_labs' patient.id %}" class="btn">Add Labs</a>
+        </div>
+
+        <!-- Diagnoses -->
+        <div class="data-section">
+            <h3>Diagnoses</h3>
+            {% if diagnoses %}
+                {% for diagnosis in diagnoses %}
+                    <div class="collapsible-entry">
+                        <div class="collapsible-header">
+                            <button class="collapsible">
+                                {{ diagnosis.date|date }} - {{ diagnosis.diagnosis }}
+                                <span class="toggle-icon">▼</span>
+                            </button>
+                            {% if user.is_staff or user.is_superuser %}
+                                <button class="btn danger small delete-record" 
+                                        data-record-type="diagnosis" 
+                                        data-record-id="{{ diagnosis.id }}">
+                                    Delete
+                                </button>
+                            {% endif %}
+                        </div>
+                        <div class="content">
+                            <table class="data-table compact">
+                                <tr>
+                                    <th>ICD Code</th>
+                                    <td>{{ diagnosis.icd_code }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Source</th>
+                                    <td>{{ diagnosis.source }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No diagnoses recorded</p>
+            {% endif %}
+        </div>
+
+        <!-- Vitals -->
+        <div class="data-section">
+            <h3>Vitals</h3>
+            {% if vitals %}
+                {% for vital in vitals %}
+                    <div class="collapsible-entry">
+                        <button class="collapsible">
+                            {{ vital.date|date }} - BP: {{ vital.blood_pressure }}
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                        <div class="content">
+                            <table class="data-table compact">
+                                <tr>
+                                    <th>Temperature</th>
+                                    <td>{{ vital.temperature }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Pulse</th>
+                                    <td>{{ vital.pulse }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Respirations</th>
+                                    <td>{{ vital.respirations }}</td>
+                                </tr>
+                                <tr>
+                                    <th>SpO2</th>
+                                    <td>{{ vital.spo2 }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No vitals recorded</p>
+            {% endif %}
+        </div>
+
+        <!-- Lab Results -->
+        <div class="data-section">
+            <h3>Lab Results</h3>
+            {% if cbc_labs or cmp_labs %}
+            {% if cbc_labs %}
+            <h4>CBC Labs</h4>
+            {% for lab in cbc_labs %}
+                <div class="collapsible-entry">
+                    <button class="collapsible">
+                        CBC Results - {{ lab.date|date }}
+                        <span class="toggle-icon">▼</span>
+                    </button>
+                    <div class="content">
+                        <div class="lab-panel">
+                            <div class="lab-group">
+                                <h6>Basic Cell Counts</h6>
+                                <table class="data-table compact">
+                                    <tr>
+                                        <th>RBC</th>
+                                        <th>WBC</th>
+                                        <th>Platelets</th>
+                                        <th>Hemoglobin</th>
+                                        <th>Hematocrit</th>
+                                    </tr>
+                                    <tr>
+                                        <td>{{ lab.rbc }}</td>
+                                        <td>{{ lab.wbc }}</td>
+                                        <td>{{ lab.platelets }}</td>
+                                        <td>{{ lab.hemoglobin }}</td>
+                                        <td>{{ lab.hematocrit }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="lab-group">
+                                <h6>Cell Indices</h6>
+                                <table class="data-table compact">
+                                    <tr>
+                                        <th>MCV</th>
+                                        <th>MCH</th>
+                                        <th>MCHC</th>
+                                    </tr>
+                                    <tr>
+                                        <td>{{ lab.mcv }}</td>
+                                        <td>{{ lab.mch }}</td>
+                                        <td>{{ lab.mchc }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="lab-group">
+                                <h6>Differential</h6>
+                                <table class="data-table compact">
+                                    <tr>
+                                        <th>Neutrophils</th>
+                                        <th>Lymphocytes</th>
+                                        <th>Monocytes</th>
+                                        <th>Eosinophils</th>
+                                        <th>Basophils</th>
+                                    </tr>
+                                    <tr>
+                                        <td>{{ lab.neutrophils }}</td>
+                                        <td>{{ lab.lymphocytes }}</td>
+                                        <td>{{ lab.monocytes }}</td>
+                                        <td>{{ lab.eosinophils }}</td>
+                                        <td>{{ lab.basophils }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+                {% if cmp_labs %}
+                    <h4>CMP Labs</h4>
+                    {% for lab in cmp_labs %}
+                        <div class="collapsible-entry">
+                            <button class="collapsible">
+                                CMP Results - {{ lab.date|date }}
+                                <span class="toggle-icon">▼</span>
+                            </button>
+                            <div class="content">
+                                <div class="lab-panel">
+                                    <div class="lab-group">
+                                        <h6>Electrolytes</h6>
+                                        <table class="data-table compact">
+                                            <tr>
+                                                <th>Sodium</th>
+                                                <th>Potassium</th>
+                                                <th>Chloride</th>
+                                                <th>CO2</th>
+                                            </tr>
+                                            <tr>
+                                                <td>{{ lab.sodium }}</td>
+                                                <td>{{ lab.potassium }}</td>
+                                                <td>{{ lab.chloride }}</td>
+                                                <td>{{ lab.co2 }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div class="lab-group">
+                                        <h6>Metabolic Panel</h6>
+                                        <table class="data-table compact">
+                                            <tr>
+                                                <th>Glucose</th>
+                                                <th>BUN</th>
+                                                <th>Creatinine</th>
+                                                <th>GFR</th>
+                                            </tr>
+                                            <tr>
+                                                <td>{{ lab.glucose }}</td>
+                                                <td>{{ lab.bun }}</td>
+                                                <td>{{ lab.creatinine }}</td>
+                                                <td>{{ lab.gfr }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% else %}
+                <p>No lab results recorded</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Treatment & Monitoring -->
+    <section class="info-section">
+        <h2>Treatment & Monitoring</h2>
+        <div class="action-buttons">
+            <a href="{% url 'add_medications' patient.id %}" class="btn">Add Medications</a>
+            <a href="{% url 'add_measurements' patient.id %}" class="btn">Add Measurements</a>
+            <a href="{% url 'add_symptoms' patient.id %}" class="btn">Add Symptoms</a>
+        </div>
+        <!-- Add tables for medications, measurements, and symptoms similar to above -->
+
+        <!-- Medications -->
+        <div class="data-section">
+            <h3>Medications</h3>
+            {% if medications %}
+                {% for med in medications %}
+                    <div class="collapsible-entry">
+                        <button class="collapsible">
+                            {{ med.date|date }} - {{ med.drug }} {{ med.dose }}
+                            {% if med.prn %}(PRN){% endif %}
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                        <div class="content">
+                            <table class="data-table compact">
+                                <tr>
+                                    <th>Route</th>
+                                    <td>{{ med.route }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Frequency</th>
+                                    <td>{{ med.frequency }}</td>
+                                </tr>
+                                {% if med.dc_date %}
+                                <tr>
+                                    <th>Discontinued</th>
+                                    <td>{{ med.dc_date|date }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if med.notes %}
+                                <tr>
+                                    <th>Notes</th>
+                                    <td>{{ med.notes }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No medications recorded</p>
+            {% endif %}
+        </div>
+
+        <!-- Measurements -->
+        <div class="data-section">
+            <h3>Measurements</h3>
+            {% if measurements %}
+                {% for measure in measurements %}
+                    <div class="collapsible-entry">
+                        <button class="collapsible">
+                            {{ measure.date|date }} - Weight: {{ measure.weight }}
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                        <div class="content">
+                            <table class="data-table compact">
+                                <tr>
+                                    <th>Nutritional Intake</th>
+                                    <td>{{ measure.nutritional_intake }}</td>
+                                </tr>
+                                <tr>
+                                    <th>MAC</th>
+                                    <td>{{ measure.mac }}</td>
+                                </tr>
+                                <tr>
+                                    <th>FAST</th>
+                                    <td>{{ measure.fast }}</td>
+                                </tr>
+                                <tr>
+                                    <th>PPS</th>
+                                    <td>{{ measure.pps }}</td>
+                                </tr>
+                                <tr>
+                                    <th>PLOF</th>
+                                    <td>{{ measure.plof }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Source</th>
+                                    <td>{{ measure.source }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No measurements recorded</p>
+            {% endif %}
+        </div>
+
+        <!-- Symptoms -->
+        <div class="data-section">
+            <h3>Symptoms</h3>
+            {% if symptoms %}
+                {% for symptom in symptoms %}
+                    <div class="collapsible-entry">
+                        <button class="collapsible">
+                            {{ symptom.date|date }} - {{ symptom.symptom }}
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                        <div class="content">
+                            <table class="data-table compact">
+                                <tr>
+                                    <th>Reported By</th>
+                                    <td>{{ symptom.person_reporting }}</td>
+                                </tr>
+                                {% if symptom.notes %}
+                                <tr>
+                                    <th>Notes</th>
+                                    <td>{{ symptom.notes }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th>Source</th>
+                                    <td>{{ symptom.source }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No symptoms recorded</p>
+            {% endif %}
+        </div>
+    </section>
 </div>
 
-<h1>Patient Details</h1>
+<style>
+.info-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
 
-<!-- Critical Information Section -->
-<div class="critical-info">
-    <h2>Critical Information</h2>
-    {% if patient.allergies %}
-        <p>Allergies: {{ patient.allergies }}</p>
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.action-buttons {
+    margin: 1rem 0;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+/* Change .content to be more specific */
+.collapsible-entry .content {
+    display: none;
+    padding: 0 1rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background-color: white;
+}
+
+.collapsible {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #ddd;
+    text-align: left;
+    background-color: #f8f9fa;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease;
+}
+
+.collapsible:hover {
+    background-color: #e9ecef;
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.collapsible.active .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.collapsible-entry {
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+.data-section {
+    margin: 1rem 0;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.data-table th {
+    background-color: #f5f5f5;
+}
+
+.lab-panel {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.lab-group {
+    margin-bottom: 1rem;
+}
+
+.collapsible-entry {
+    margin-bottom: 0.5rem;
+}
+
+.collapsible {
+    background-color: #f8f9fa;
+    color: #333;
+    cursor: pointer;
+}
+
+.toggle-icon {
+    float: right;
+    color: #444;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 15% auto;
+    padding: 20px;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.modal-actions {
+    margin-top: 20px;
+    text-align: right;
+    gap: 10px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn.small {
+    padding: 2px 8px;
+    font-size: 0.8em;
+}
+
+.btn.danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.collapsible-header .collapsible {
+    flex-grow: 1;
+}
+
+.btn.danger.small {
+    background-color: #dc3545;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border: none;
+    cursor: pointer;
+}
+
+.btn.danger.small:hover {
+    background-color: #c82333;
+}
+</style>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Collapsible functionality
+        const collapsibles = document.querySelectorAll('.collapsible');
+        collapsibles.forEach(button => {
+            button.addEventListener('click', function() {
+                this.classList.toggle('active');
+                const content = this.closest('.collapsible-header').nextElementSibling;
+                content.style.display = content.style.display === 'block' ? 'none' : 'block';
+            });
+        });
+
+        // Delete functionality
+        const modal = document.getElementById('deleteModal');
+        let currentRecordType = null;
+        let currentRecordId = null;
+        
+        document.querySelectorAll('.delete-record').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                currentRecordType = this.dataset.recordType;
+                currentRecordId = this.dataset.recordId;
+                modal.style.display = 'block';
+            });
+        });
+        
+        document.getElementById('cancelDelete')?.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        
+        document.getElementById('confirmDelete')?.addEventListener('click', async () => {
+            try {
+                const response = await fetch(`/delete-record/${currentRecordType}/${currentRecordId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const recordElement = document.querySelector(
+                        `.delete-record[data-record-type="${currentRecordType}"][data-record-id="${currentRecordId}"]`
+                    ).closest('.collapsible-entry');
+                    recordElement.remove();
+                    modal.style.display = 'none';
+                    alert('Record deleted successfully');
+                } else {
+                    alert(data.error || 'Error deleting record');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error deleting record');
+            }
+        });
+        
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    });
+    </script>
+
+    {% if user.is_staff or user.is_superuser %}
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete this record? This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn danger" id="confirmDelete">Delete</button>
+                <button class="btn secondary" id="cancelDelete">Cancel</button>
+            </div>
+        </div>
+    </div>
     {% endif %}
-    {% if patient.current_medications %}
-        <p>Current Medications: {{ patient.current_medications }}</p>
-    {% endif %}
-</div>
-
-<div class="patient-info">
-    <h2>Demographics</h2>
-    <p>ID: {{ patient.id }}</p>
-    <p>Date: {{ patient.date }}</p>
-    <p>POA Name: {{ patient.poa_name }}</p>
-    <p>Contact: {{ patient.poa_contact }}</p>
-</div>
-
-<div class="actions">
-    <h2>Clinical Data</h2>
-    <ul>
-        <li><a href="{% url 'add_diagnosis' patient.id %}">Add Diagnosis</a></li>
-        <li><a href="{% url 'add_vitals' patient.id %}">Add Vitals</a></li>
-        <li><a href="{% url 'add_labs' patient.id %}">Add Labs</a></li>
-    </ul>
-    
-    <h2>Treatment & Monitoring</h2>
-    <ul>
-        <li><a href="{% url 'add_medications' patient.id %}">Add Medications</a></li>
-        <li><a href="{% url 'add_measurements' patient.id %}">Add Measurements</a></li>
-        <li><a href="{% url 'add_symptoms' patient.id %}">Add Symptoms</a></li>
-    </ul>
-</div>
-
-<div class="data-sections">
-    <h2>Recent Data</h2>
-    
-    {% if diagnoses %}
-    <h3>Diagnoses</h3>
-    <ul>
-        {% for diagnosis in diagnoses|slice:":5" %}
-        <li>{{ diagnosis.date|date:"Y-m-d H:i" }} - {{ diagnosis.diagnosis }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
-
-    {% if vitals %}
-    <h3>Recent Vitals</h3>
-    <ul>
-        {% for vital in vitals|slice:":5" %}
-        <li>{{ vital.date|date:"Y-m-d H:i" }} - BP: {{ vital.blood_pressure }}, Temp: {{ vital.temperature }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
-
-    <!-- Add pagination for full history -->
-    {% if diagnoses.count > 5 or vitals.count > 5 %}
-    <p><a href="{% url 'patient_history' patient.id %}">View Full History</a></p>
-    {% endif %}
-</div>
-
-<!-- Audit Trail -->
-<div class="audit-trail">
-    <h2>Recent Changes</h2>
-    {% if audit_entries %}
-    <ul>
-        {% for entry in audit_entries|slice:":5" %}
-        <li>{{ entry.timestamp|date:"Y-m-d H:i" }} - {{ entry.action }} by {{ entry.user }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
-</div>
 {% endblock %}

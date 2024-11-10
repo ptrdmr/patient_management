@@ -141,3 +141,21 @@ class FormSectionTests(TestCase):
             for field in form.fields:
                 self.assertIn(field, all_section_fields, 
                     f"Field '{field}' missing from sections in {form.__class__.__name__}")
+
+    def test_medical_field_validation(self):
+        """Test that medical fields have proper validation rules"""
+        form = MeasurementsForm()
+        
+        # Test blood pressure validation
+        self.assertEqual(
+            form.fields['blood_pressure'].widget.attrs['pattern'],
+            r'^\d{2,3}\/\d{2,3}$'
+        )
+        
+        # Test temperature validation
+        self.assertEqual(form.fields['temperature'].widget.attrs['min'], '95')
+        self.assertEqual(form.fields['temperature'].widget.attrs['max'], '108')
+        
+        # Test pulse validation
+        self.assertEqual(form.fields['pulse'].widget.attrs['min'], '40')
+        self.assertEqual(form.fields['pulse'].widget.attrs['max'], '200')

@@ -1,0 +1,78 @@
+{% extends 'patient_records/base.html' %}
+
+{% block content %}
+{% include 'components/_breadcrumbs.html' %}
+
+{% if patient %}
+    {% include 'components/_patient_header.html' %}
+{% endif %}
+
+<h1>{% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}</h1>
+
+<div class="tab-container">
+    <div class="tab-buttons">
+        {% block tab_buttons %}{% endblock %}
+    </div>
+
+    <div class="tab-contents">
+        {% block tab_contents %}{% endblock %}
+    </div>
+</div>
+
+{% block form_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                button.classList.add('active');
+                document.getElementById(`${button.dataset.tab}-tab`).classList.add('active');
+            });
+        });
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tab-container {
+        margin-top: 2rem;
+    }
+
+    .tab-buttons {
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    .tab-button {
+        padding: 0.5rem 1rem;
+        margin-right: 0.5rem;
+        border: 1px solid transparent;
+        border-bottom: none;
+        background: none;
+        cursor: pointer;
+    }
+
+    .tab-button.active {
+        border-color: #dee2e6;
+        border-bottom-color: white;
+        margin-bottom: -1px;
+        border-radius: 0.25rem 0.25rem 0 0;
+    }
+
+    .tab-content {
+        display: none;
+        padding: 1rem;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+{% endblock %} 

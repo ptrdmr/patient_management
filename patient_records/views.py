@@ -10,6 +10,10 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth import logout
 from django.urls import reverse_lazy
 from django.http import JsonResponse
+import csv
+from pathlib import Path
+from django.views.decorators.http import require_GET
+from django.contrib.auth.decorators import user_passes_test
 
 @login_required
 def home(request):
@@ -37,10 +41,24 @@ def add_patient(request):
                 action='CREATE', 
                 user=request.user
             )
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Patient added successfully!',
+                    'redirect_url': reverse('patient_detail', args=[patient.id])
+                })
+            
             messages.success(request, 'Patient added successfully!')
             return redirect('patient_detail', patient_id=patient.id)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            }, status=400)
     else:
-        form = PatientForm(initial={'date': datetime.date.today()})
+        form = PatientForm()
     
     context = {
         'form': form,
@@ -48,7 +66,6 @@ def add_patient(request):
         'form_title': 'Add New Patient',
         'submit_label': 'Save Patient',
         'cancel_url': reverse('patient_list'),
-        'confirmation_message': 'Are you sure you want to save this patient record?'
     }
     return render(request, 'patient_records/add_patient.html', context)
 
@@ -87,9 +104,40 @@ def patient_list(request):
 def patient_detail(request, patient_id):
     """View detailed patient information"""
     patient = get_object_or_404(Patient, id=patient_id)
+    
+    # Get all related data
+    diagnoses = Diagnosis.objects.filter(patient=patient).order_by('-date')
+    vitals = Vitals.objects.filter(patient=patient).order_by('-date')
+    cbc_labs = CbcLabs.objects.filter(patient=patient).order_by('-date')
+    cmp_labs = CmpLabs.objects.filter(patient=patient).order_by('-date')
+    medications = Medications.objects.filter(patient=patient).order_by('-date')
+    measurements = Measurements.objects.filter(patient=patient).order_by('-date')
+    symptoms = Symptoms.objects.filter(patient=patient).order_by('-date')
     audit_entries = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')[:5]
+    
+    breadcrumbs = [
+        {'label': 'Patients', 'url': reverse('patient_list')},
+        {'label': f'Patient {patient_id}', 'url': None}
+    ]
 
-    return render(request, 'patient_records/patient_detail.html', {'patient': patient, 'audit_entries': audit_entries})
+    context = {
+        'patient': patient,
+        'diagnoses': diagnoses,
+        'vitals': vitals,
+        'cbc_labs': cbc_labs,
+        'cmp_labs': cmp_labs,
+        'medications': medications,
+        'measurements': measurements,
+        'symptoms': symptoms,
+        'audit_entries': audit_entries,
+        'breadcrumbs': breadcrumbs,
+        'page_title': f'Patient {patient_id} Details'
+    }
+    
+    # Add this for debugging
+    print("Context data:", {k: bool(v) for k, v in context.items() if k != 'breadcrumbs'})
+    
+    return render(request, 'patient_records/patient_detail.html', context)
 
 @login_required
 def add_diagnosis(request, patient_id):
@@ -158,40 +206,39 @@ def add_vitals(request, patient_id):
 
 @login_required
 def add_labs(request, patient_id):
-    """Add lab results for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
-    
-    breadcrumbs = [
-        {'label': 'Patients', 'url': reverse('patient_list')},
-        {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
-        {'label': 'Add Labs', 'url': None}
-    ]
+    cmp_form = CmpLabsForm()
+    cbc_form = CbcLabsForm()
     
     if request.method == 'POST':
-        cmp_form = CmpLabsForm(request.POST, prefix='cmp')
-        cbc_form = CbcLabsForm(request.POST, prefix='cbc')
-        if cmp_form.is_valid() and cbc_form.is_valid():
-            cmp = cmp_form.save(commit=False)
-            cbc = cbc_form.save(commit=False)
-            cmp.patient = patient
-            cbc.patient = patient
-            cmp.save()
-            cbc.save()
+        lab_type = request.POST.get('lab_type')
+        if lab_type == 'cmp':
+            form = CmpLabsForm(request.POST)
+        else:
+            form = CbcLabsForm(request.POST)
+            
+        if form.is_valid():
+            lab = form.save(commit=False)
+            lab.patient = patient
+            lab.save()
             messages.success(request, 'Lab results added successfully!')
             return redirect('patient_detail', patient_id=patient_id)
-    else:
-        cmp_form = CmpLabsForm(prefix='cmp', initial={'patient': patient})
-        cbc_form = CbcLabsForm(prefix='cbc', initial={'patient': patient})
+        else:
+            if lab_type == 'cmp':
+                cmp_form = form
+            else:
+                cbc_form = form
     
     context = {
+        'patient': patient,
         'cmp_form': cmp_form,
         'cbc_form': cbc_form,
-        'patient': patient,
-        'breadcrumbs': breadcrumbs,
         'form_title': 'Add Lab Results',
-        'submit_label': 'Save Lab Results',
-        'cancel_url': reverse('patient_detail', args=[patient.id]),
-        'confirmation_message': 'Are you sure you want to submit these lab results?'
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': str(patient), 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Add Labs', 'url': None}
+        ]
     }
     return render(request, 'patient_records/add_labs.html', context)
 
@@ -388,7 +435,13 @@ def add_provider(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Provider added successfully!')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'redirect_url': reverse('provider_list')
+                })
             return redirect('provider_list')
+        elif request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'errors': form.errors}, status=400)
     else:
         form = ProviderForm()
     
@@ -400,7 +453,7 @@ def add_provider(request):
         'cancel_url': reverse('provider_list'),
         'confirmation_message': 'Are you sure you want to save this provider?'
     }
-    return render(request, 'patient_records/add_provider.html', context)
+    return render(request, 'patient_records/generic_form.html', context)
 
 @login_required
 def provider_list(request):
@@ -416,25 +469,6 @@ def provider_list(request):
         'page_title': 'Provider List'
     }
     return render(request, 'patient_records/provider_list.html', context)
-
-@login_required
-def patient_detail(request, patient_id):
-    """View detailed patient information"""
-    patient = get_object_or_404(Patient, id=patient_id)
-    audit_entries = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')[:5]
-    
-    breadcrumbs = [
-        {'label': 'Patients', 'url': reverse('patient_list')},
-        {'label': f'Patient {patient_id}', 'url': None}
-    ]
-
-    context = {
-        'patient': patient,
-        'audit_entries': audit_entries,
-        'breadcrumbs': breadcrumbs,
-        'page_title': f'Patient {patient_id} Details'
-    }
-    return render(request, 'patient_records/patient_detail.html', context)
 
 @login_required
 def add_record_request(request, patient_id):
@@ -489,12 +523,11 @@ def edit_provider(request, provider_id):
         'form': form,
         'provider': provider,
         'breadcrumbs': breadcrumbs,
-        'form_title': 'Edit Provider',
+        'form_title': f'Edit Provider: {provider}',
         'submit_label': 'Update Provider',
-        'cancel_url': reverse('provider_list'),
-        'confirmation_message': 'Are you sure you want to update this provider?'
+        'cancel_url': reverse('provider_list')
     }
-    return render(request, 'patient_records/edit_provider.html', context)
+    return render(request, 'patient_records/base_form.html', context)
 
 class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
@@ -526,3 +559,74 @@ def form_view(request):
             return JsonResponse({'errors': form.errors}, status=400)
     
     # ... rest of your view code
+
+@require_GET
+def icd_code_lookup(request):
+    query = request.GET.get('q', '').strip().upper()
+    if not query:
+        return JsonResponse({'results': []})
+    
+    try:
+        # Get the path to the codes.csv file
+        csv_path = Path(__file__).parent / 'data' / 'codes.csv'
+        
+        results = []
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            csv_reader = csv.reader(file)
+            next(csv_reader)  # Skip header row if present
+            
+            for row in csv_reader:
+                code = row[0]
+                diagnosis = row[4]  # Using the 5th column (index 4) for diagnosis
+                if code.startswith(query):
+                    results.append({
+                        'code': code,
+                        'description': diagnosis,  # Changed from row[1] to diagnosis
+                        'value': f'{code} - {diagnosis}'  # Updated to use diagnosis
+                    })
+        
+        return JsonResponse({
+            'results': results[:5]  # Still limit to 5 results for performance
+        })
+    except Exception as e:
+        print(f"Error in ICD lookup: {str(e)}")  # Add logging
+        return JsonResponse({
+            'error': 'An error occurred during ICD code lookup'
+        }, status=400)
+
+def is_admin(user):
+    return user.is_superuser or user.is_staff
+
+@user_passes_test(is_admin)
+def delete_record(request, model_name, record_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    model_map = {
+        'diagnosis': Diagnosis,
+        'vitals': Vitals,
+        'labs': CbcLabs,  # Add other models as needed
+    }
+    
+    Model = model_map.get(model_name.lower())
+    if not Model:
+        return JsonResponse({'error': 'Invalid record type'}, status=400)
+    
+    try:
+        record = Model.objects.get(id=record_id)
+        patient_id = record.patient.id  # Store patient_id before deletion
+        record.delete()
+        
+        # Create audit trail - removed 'details' field
+        AuditTrail.objects.create(
+            patient_id=patient_id,
+            action=f'DELETE_{model_name.upper()}',
+            user=request.user,
+            description=f'Deleted {model_name} record {record_id}'  # Changed 'details' to 'description'
+        )
+        
+        return JsonResponse({'success': True})
+    except Model.DoesNotExist:
+        return JsonResponse({'error': 'Record not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

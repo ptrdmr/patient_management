@@ -1,68 +1,48 @@
 {% extends 'patient_records/base.html' %}
+{% load patient_tags %}
 
-{% block title %}Patient List{% endblock %}
+{% block title %}Patients{% endblock %}
 
 {% block content %}
-<h1>Patient List</h1>
+{% include 'components/_breadcrumbs.html' %}
 
-<!-- Search and Filter Form -->
-<form method="get" action="{% url 'patient_list' %}">
-    <input type="text" name="search" placeholder="Search by ID or POA name" value="{{ request.GET.search }}">
-    <select name="sort">
-        <option value="date" {% if request.GET.sort == 'date' %}selected{% endif %}>Date</option>
-        <option value="id" {% if request.GET.sort == 'id' %}selected{% endif %}>ID</option>
-        <option value="poa_name" {% if request.GET.sort == 'poa_name' %}selected{% endif %}>POA Name</option>
-    </select>
-    <button type="submit">Search</button>
-</form>
-
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Date</th>
-            <th>POA Name</th>
-            <th>Last Updated</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for patient in patients %}
-        <tr>
-            <td>{{ patient.id }}</td>
-            <td>{{ patient.date }}</td>
-            <td>{{ patient.poa_name }}</td>
-            <td>{{ patient.last_updated|date:"Y-m-d H:i" }}</td>
-            <td>
-                <a href="{% url 'patient_detail' patient.id %}">View Details</a>
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="5">No patients found.</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-<!-- Pagination -->
-{% if is_paginated %}
-<div class="pagination">
-    <span class="step-links">
-        {% if page_obj.has_previous %}
-            <a href="?page=1">&laquo; first</a>
-            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-        {% endif %}
-
-        <span class="current">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-        </span>
-
-        {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}">next</a>
-            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
-        {% endif %}
-    </span>
+<div class="content-header">
+    <h1>Patient List</h1>
+    <a href="{% url 'add_patient' %}" class="button">Add New Patient</a>
 </div>
+
+<div class="patient-list">
+    {% if patients %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>DOB</th>
+                    <th>Gender</th>
+                    <th>Last Updated</th>
+                    <th><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for patient in patients %}
+                <tr>
+                    <td><a href="{% url 'patient_detail' patient.id %}">{{ patient|full_name }}</a></td>
+                    <td>{{ patient.date_of_birth|date:"M d, Y" }}</td>
+                    <td>{{ patient.get_gender_display }}</td>
+                    <td>{{ patient.last_updated|date:"M d, Y" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'patient_detail' patient.id %}" class="action-link">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No patients found.</p>
+    {% endif %}
+</div>
+
+{% if is_paginated %}
+    {% include 'components/_pagination.html' %}
 {% endif %}
 {% endblock %}

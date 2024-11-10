@@ -1,0 +1,14 @@
+{% load form_tags %}
+
+<fieldset class="form-section">
+    <legend>{{ section.title }}</legend>
+    {% if section.description %}
+        <div class="section-description">{{ section.description }}</div>
+    {% endif %}
+    
+    {% for field_name in section.fields %}
+        {% with field=form|get_field:field_name %}
+            {% include "patient_records/partials/_form_field.html" with field=field %}
+        {% endwith %}
+    {% endfor %}
+</fieldset> 

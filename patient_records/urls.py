@@ -25,4 +25,6 @@ urlpatterns = [
     path('provider/add/', views.add_provider, name='add_provider'),
     path('providers/', views.provider_list, name='provider_list'),
     path('provider/<int:provider_id>/edit/', views.edit_provider, name='edit_provider'),
+    path('api/icd-lookup/', views.icd_code_lookup, name='icd_code_lookup'),
+    path('delete-record/<str:model_name>/<int:record_id>/', views.delete_record, name='delete_record'),
 ]

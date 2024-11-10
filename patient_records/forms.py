@@ -1,38 +1,123 @@
 from django import forms
 from .models import *
 import datetime
+from .widgets import ICDCodeWidget
 
-
-
-class ProviderForm(forms.ModelForm):
-    class Meta:
-        model = Provider
-        fields = [
-            'provider', 'practice', 'address', 'city', 
-            'state', 'zip', 'fax', 'phone', 'source'
-        ]
+# Move these base classes to the top of the file
+class BaseForm(forms.ModelForm):
+    MEDICAL_VALIDATION_RULES = {
+        'blood_pressure': {
+            'pattern': r'^\d{2,3}\/\d{2,3}$',
+            'message': 'Enter blood pressure as systolic/diastolic (e.g., 120/80)'
+        },
+        'temperature': {
+            'min': '95',
+            'max': '108',
+            'step': '0.1',
+            'message': 'Temperature must be between 95°F and 108°F'
+        },
+        'pulse': {
+            'min': '40',
+            'max': '200',
+            'message': 'Pulse must be between 40 and 200 BPM'
+        },
+        'respiratory_rate': {
+            'min': '8',
+            'max': '40',
+            'message': 'Respiratory rate must be between 8 and 40 breaths/min'
+        },
+        'height': {
+            'min': '24',
+            'max': '96',
+            'message': 'Height must be between 24 and 96 inches'
+        },
+        'weight': {
+            'min': '2',
+            'max': '1000',
+            'message': 'Weight must be between 2 and 1000 pounds'
+        }
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Define form sections
-        self.sections = [
+        self.setup_fields()
+
+    def setup_fields(self):
+        """Add common attributes and validation rules to fields"""
+        for field_name, field in self.fields.items():
+            # Existing attributes
+            css_classes = field.widget.attrs.get('class', '')
+            field.widget.attrs['class'] = f'form-control {css_classes}'.strip()
+            
+            # Add validation rules based on field type
+            if field.required:
+                field.widget.attrs['required'] = 'required'
+
+            # Add field-specific validation
+            if isinstance(field, forms.DateField):
+                field.widget.attrs['max'] = datetime.date.today().isoformat()
+            
+            if field_name == 'ssn':
+                field.widget.attrs['pattern'] = r'^\d{3}-?\d{2}-?\d{4}$'
+                field.widget.attrs['data-validation-message'] = 'Please enter a valid SSN (XXX-XX-XXXX)'
+            
+            if field_name in ['phone', 'fax']:
+                field.widget.attrs['pattern'] = r'^\(\d{3}\)\s?\d{3}-\d{4}$'
+                field.widget.attrs['data-validation-message'] = 'Please enter a valid phone number (XXX) XXX-XXXX'
+
+            # Add medical-specific validation
+            if field_name in self.MEDICAL_VALIDATION_RULES:
+                rules = self.MEDICAL_VALIDATION_RULES[field_name]
+                
+                if 'pattern' in rules:
+                    field.widget.attrs['pattern'] = rules['pattern']
+                if 'min' in rules:
+                    field.widget.attrs['min'] = rules['min']
+                if 'max' in rules:
+                    field.widget.attrs['max'] = rules['max']
+                if 'step' in rules:
+                    field.widget.attrs['step'] = rules['step']
+                
+                field.widget.attrs['data-validation-message'] = rules['message']
+
+    @property
+    def sections(self):
+        """Override this in form classes that need sections"""
+        return None
+
+class SectionedForm(BaseForm):
+    """Base class for forms that use sections"""
+    
+    def get_sections(self):
+        """Override this method to define form sections"""
+        return []
+
+    @property
+    def sections(self):
+        return self.get_sections()
+
+# Then your existing form classes follow...
+class ProviderForm(SectionedForm):
+    class Meta:
+        model = Provider
+        fields = ['provider', 'practice', 'address', 'city', 'state', 'zip', 'fax', 'phone', 'source']
+
+    def get_sections(self):
+        return [
             {
                 'title': 'Provider Information',
-                'description': 'Basic provider details',
                 'fields': ['provider', 'practice']
             },
             {
-                'title': 'Contact Details',
-                'description': 'Address and contact information',
+                'title': 'Contact Information',
                 'fields': ['address', 'city', 'state', 'zip', 'phone', 'fax']
             },
             {
                 'title': 'Additional Information',
-                'description': 'Other relevant details',
                 'fields': ['source']
             }
         ]
-        
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if not instance.date:
@@ -44,27 +129,24 @@ class ProviderForm(forms.ModelForm):
 class DiagnosisForm(forms.ModelForm):
     class Meta:
         model = Diagnosis
-        fields = ['date', 'diagnosis', 'icd_code', 'source']
+        fields = ['icd_code', 'diagnosis', 'date', 'notes']
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
+            'icd_code': ICDCodeWidget(attrs={
+                'placeholder': 'Enter ICD code',
+                'data-diagnosis-field': 'diagnosis'
+            }),
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sections = [
+    def get_sections(self):
+        return [
             {
-                'title': 'Diagnosis Details',
-                'description': 'Primary diagnosis information',
-                'fields': ['date', 'diagnosis', 'icd_code']
-            },
-            {
-                'title': 'Additional Information',
-                'description': 'Source and other details',
-                'fields': ['source']
+                'title': 'Diagnosis Information',
+                'description': 'Enter diagnosis details',
+                'fields': ['icd_code', 'diagnosis', 'date', 'notes']
             }
         ]
 
-class VisitsForm(forms.ModelForm):
+class VisitsForm(SectionedForm):
     class Meta:
         model = Visits
         fields = '__all__'
@@ -73,15 +155,28 @@ class VisitsForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 4}),
         }
 
-class VitalsForm(forms.ModelForm):
+    def get_sections(self):
+        return [
+            {
+                'title': 'Visit Information',
+                'description': 'Basic visit details',
+                'fields': ['date', 'provider', 'visit_type']
+            },
+            {
+                'title': 'Visit Details',
+                'description': 'Notes and observations',
+                'fields': ['notes', 'follow_up_needed', 'follow_up_date']
+            }
+        ]
+
+class VitalsForm(SectionedForm):
     class Meta:
         model = Vitals
         fields = ['date', 'blood_pressure', 'temperature', 'spo2', 'pulse', 
                  'respirations', 'supp_o2', 'pain', 'source']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sections = [
+    def get_sections(self):
+        return [
             {
                 'title': 'Basic Vitals',
                 'description': 'Primary vital signs',
@@ -99,7 +194,7 @@ class VitalsForm(forms.ModelForm):
             }
         ]
 
-class CmpLabsForm(forms.ModelForm):
+class CmpLabsForm(SectionedForm):
     date = forms.DateField(
         widget=forms.DateInput(
             attrs={'type': 'date'},
@@ -109,40 +204,35 @@ class CmpLabsForm(forms.ModelForm):
 
     class Meta:
         model = CmpLabs
-        fields = ['date', 'bun', 'sodium', 'protein', 'albumin', 'bilirubin', 
-                 'gfr', 'potassium', 'chloride', 'co2', 'glucose', 'creatinine']
+        fields = ['date', 'sodium', 'potassium', 'chloride', 'co2', 
+                 'glucose', 'bun', 'creatinine', 'calcium',
+                 'protein', 'albumin', 'bilirubin', 'gfr']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sections = [
+    def get_sections(self):
+        return [
             {
                 'title': 'Basic Information',
                 'description': 'Date of lab results',
                 'fields': ['date']
             },
             {
+                'title': 'Electrolytes',
+                'description': 'Electrolyte measurements',
+                'fields': ['sodium', 'potassium', 'chloride', 'co2']
+            },
+            {
                 'title': 'Metabolic Panel',
-                'description': 'Primary metabolic indicators',
-                'fields': ['bun', 'sodium', 'protein', 'albumin']
+                'description': 'Basic metabolic measurements',
+                'fields': ['glucose', 'bun', 'creatinine', 'calcium']
             },
             {
                 'title': 'Liver Function',
-                'description': 'Liver-related measurements',
-                'fields': ['bilirubin', 'gfr']
-            },
-            {
-                'title': 'Electrolytes',
-                'description': 'Electrolyte measurements',
-                'fields': ['potassium', 'chloride', 'co2']
-            },
-            {
-                'title': 'Additional Tests',
-                'description': 'Other metabolic indicators',
-                'fields': ['glucose', 'creatinine']
+                'description': 'Liver function tests',
+                'fields': ['protein', 'albumin', 'bilirubin', 'gfr']
             }
         ]
 
-class CbcLabsForm(forms.ModelForm):
+class CbcLabsForm(SectionedForm):
     date = forms.DateField(
         widget=forms.DateInput(
             attrs={'type': 'date'},
@@ -156,9 +246,8 @@ class CbcLabsForm(forms.ModelForm):
                  'mchc', 'rdw', 'platelets', 'mch', 'neutrophils', 
                  'lymphocytes', 'monocytes', 'eosinophils', 'basophils']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sections = [
+    def get_sections(self):
+        return [
             {
                 'title': 'Basic Information',
                 'description': 'Date of lab results',
@@ -187,14 +276,13 @@ class CbcLabsForm(forms.ModelForm):
             }
         ]
 
-class SymptomsForm(forms.ModelForm):
+class SymptomsForm(SectionedForm):
     class Meta:
         model = Symptoms
         fields = ['date', 'symptom', 'notes', 'source', 'person_reporting']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sections = [
+    def get_sections(self):
+        return [
             {
                 'title': 'Symptom Information',
                 'description': 'Primary symptom details',
@@ -207,14 +295,13 @@ class SymptomsForm(forms.ModelForm):
             }
         ]
 
-class MedicationsForm(forms.ModelForm):
+class MedicationsForm(SectionedForm):
     class Meta:
         model = Medications
         fields = ['date', 'drug', 'dose', 'route', 'frequency', 'prn', 'dc_date', 'notes']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sections = [
+    def get_sections(self):
+        return [
             {
                 'title': 'Medication Details',
                 'description': 'Basic medication information',
@@ -232,14 +319,13 @@ class MedicationsForm(forms.ModelForm):
             }
         ]
 
-class MeasurementsForm(forms.ModelForm):
+class MeasurementsForm(SectionedForm):
     class Meta:
         model = Measurements
         fields = ['date', 'weight', 'nutritional_intake', 'mac', 'fast', 'pps', 'plof', 'source']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sections = [
+    def get_sections(self):
+        return [
             {
                 'title': 'Basic Measurements',
                 'description': 'Primary measurements',
@@ -262,7 +348,7 @@ class MeasurementsForm(forms.ModelForm):
             }
         ]
 
-class ImagingForm(forms.ModelForm):
+class ImagingForm(SectionedForm):
     class Meta:
         model = Imaging
         fields = '__all__'
@@ -271,7 +357,26 @@ class ImagingForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 4}),
         }
 
-class AdlsForm(forms.ModelForm):
+    def get_sections(self):
+        return [
+            {
+                'title': 'Study Information',
+                'description': 'Basic imaging details',
+                'fields': ['date', 'study_type', 'body_area']
+            },
+            {
+                'title': 'Results',
+                'description': 'Findings and interpretation',
+                'fields': ['findings', 'impression', 'notes']
+            },
+            {
+                'title': 'Additional Information',
+                'description': 'Source and follow-up',
+                'fields': ['source', 'follow_up_needed']
+            }
+        ]
+
+class AdlsForm(SectionedForm):
     class Meta:
         model = Adls
         fields = '__all__'
@@ -280,70 +385,119 @@ class AdlsForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 4}),
         }
 
-class OccurrencesForm(forms.ModelForm):
+    def get_sections(self):
+        return [
+            {
+                'title': 'Basic Information',
+                'description': 'Assessment date and type',
+                'fields': ['date', 'assessment_type']
+            },
+            {
+                'title': 'Daily Living Activities',
+                'description': 'Basic ADL scores',
+                'fields': ['bathing', 'dressing', 'toileting', 'transferring', 'continence', 'feeding']
+            },
+            {
+                'title': 'Additional Information',
+                'description': 'Notes and observations',
+                'fields': ['notes', 'source']
+            }
+        ]
+
+class OccurrencesForm(SectionedForm):
     class Meta:
         model = Occurrences
         fields = '__all__'
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
-            'description': forms.Textarea(attrs={'rows': 4}),
+            'time': forms.TimeInput(attrs={'type': 'time'}),
             'notes': forms.Textarea(attrs={'rows': 4}),
         }
 
-class RecordRequestLogForm(forms.ModelForm):
+    def get_sections(self):
+        return [
+            {
+                'title': 'Event Information',
+                'description': 'When and what happened',
+                'fields': ['date', 'time', 'occurrence_type']
+            },
+            {
+                'title': 'Event Details',
+                'description': 'Detailed information about the occurrence',
+                'fields': ['severity', 'location', 'witnesses']
+            },
+            {
+                'title': 'Response & Follow-up',
+                'description': 'Actions taken and additional notes',
+                'fields': ['action_taken', 'staff_response', 'follow_up_needed', 'notes']
+            }
+        ]
+
+class RecordRequestLogForm(SectionedForm):
     class Meta:
         model = RecordRequestLog
         fields = '__all__'
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'received_on': forms.DateInput(attrs={'type': 'date'}),
-            'processed_date': forms.DateInput(attrs={'type': 'date'}),
+            'date_requested': forms.DateInput(attrs={'type': 'date'}),
+            'date_sent': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 4}),
         }
 
-class PatientForm(forms.ModelForm):
+    def get_sections(self):
+        return [
+            {
+                'title': 'Request Information',
+                'description': 'Basic request details',
+                'fields': ['date_requested', 'requestor', 'request_type', 'urgency']
+            },
+            {
+                'title': 'Record Details',
+                'description': 'What records were requested',
+                'fields': ['records_requested', 'date_range_start', 'date_range_end']
+            },
+            {
+                'title': 'Processing Information',
+                'description': 'Status and delivery details',
+                'fields': ['status', 'date_sent', 'delivery_method', 'notes']
+            }
+        ]
+
+class PatientForm(SectionedForm):
     class Meta:
         model = Patient
-        fields = [
-            'first_name', 'middle_name', 'last_name', 'date_of_birth', 
-            'gender', 'ssn', 'allergies', 'code_status', 'height_cm', 'height_inches',
-            'poa_name', 'relationship', 'poa_contact',
-            'veteran', 'veteran_spouse', 'marital_status',
-            'street_address', 'city', 'state', 'zip', 'patient_phone', 'patient_email'
-        ]
+        fields = ['first_name', 'middle_name', 'last_name', 'date_of_birth', 
+                 'gender', 'ssn', 'allergies', 'code_status']
         widgets = {
-            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
-            'ssn': forms.TextInput(attrs={'pattern': r'\d{3}-\d{2}-\d{4}', 'placeholder': 'XXX-XX-XXXX'}),
-            'height_cm': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
-            'height_inches': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'date_of_birth': forms.DateInput(
+                attrs={
+                    'type': 'date',
+                    'class': 'form-control',
+                    'max': datetime.date.today().isoformat()  # Prevents future dates
+                }
+            ),
+            # ... other widgets ...
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sections = [
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.date = datetime.date.today()
+        if commit:
+            instance.save()
+        return instance
+
+    def get_sections(self):
+        return [
             {
                 'title': 'Basic Information',
-                'description': 'Primary patient identification',
-                'fields': ['first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'ssn']
+                'fields': ['first_name', 'middle_name', 'last_name', 'date_of_birth']
+            },
+            {
+                'title': 'Demographics',
+                'fields': ['gender', 'ssn']
             },
             {
                 'title': 'Medical Information',
-                'description': 'Health-related details',
-                'fields': ['allergies', 'code_status', 'height_cm', 'height_inches']
-            },
-            {
-                'title': 'Power of Attorney',
-                'description': 'POA contact information',
-                'fields': ['poa_name', 'relationship', 'poa_contact']
-            },
-            {
-                'title': 'Status Information',
-                'description': 'Additional patient status details',
-                'fields': ['veteran', 'veteran_spouse', 'marital_status']
-            },
-            {
-                'title': 'Contact Information',
-                'description': 'Patient contact details',
-                'fields': ['street_address', 'city', 'state', 'zip', 'patient_phone', 'patient_email']
+                'fields': ['allergies', 'code_status']
             }
         ]
 
@@ -354,3 +508,4 @@ class PatientForm(forms.ModelForm):
         if len(ssn) != 9:
             raise forms.ValidationError("SSN must be 9 digits")
         return f"{ssn[:3]}-{ssn[3:5]}-{ssn[5:]}"
+
