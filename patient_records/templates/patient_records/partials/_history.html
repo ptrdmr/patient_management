@@ -1,0 +1,27 @@
+<div class="history-data">
+    <h3>Patient History</h3>
+    
+    <div class="pagination-info">
+        Showing records {{ audit_entries.start_index }} - {{ audit_entries.end_index }} 
+        of {{ audit_entries.paginator.count }} total records
+    </div>
+
+    {% if audit_entries %}
+        {% for entry in audit_entries %}
+            <div class="data-card collapsible">
+                <div class="card-header">
+                    <span class="date">{{ entry.timestamp|date:"M d, Y H:i" }}</span>
+                    <span class="action">{{ entry.action }}</span>
+                </div>
+                <div class="collapsible-content" style="display: none;">
+                    <p>{{ entry.details }}</p>
+                    <p class="user-info">By: {{ entry.user }}</p>
+                </div>
+            </div>
+        {% endfor %}
+        
+        {% include 'components/_pagination.html' with page_obj=audit_entries %}
+    {% else %}
+        <p>No history records found</p>
+    {% endif %}
+</div> 

@@ -298,14 +298,14 @@ class SymptomsForm(SectionedForm):
 class MedicationsForm(SectionedForm):
     class Meta:
         model = Medications
-        fields = ['date', 'drug', 'dose', 'route', 'frequency', 'prn', 'dc_date', 'notes']
+        fields = ['date_prescribed', 'drug', 'dose', 'route', 'frequency', 'prn', 'dc_date', 'notes']
 
     def get_sections(self):
         return [
             {
                 'title': 'Medication Details',
                 'description': 'Basic medication information',
-                'fields': ['date', 'drug', 'dose']
+                'fields': ['date_prescribed', 'drug', 'dose']
             },
             {
                 'title': 'Administration',

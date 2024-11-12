@@ -1,0 +1,40 @@
+<div class="clinical-data">
+    <h3>Diagnoses</h3>
+    {% if diagnoses %}
+        {% for diagnosis in diagnoses %}
+            <div class="data-card collapsible">
+                <div class="card-header">
+                    <h4>{{ diagnosis.date|date }}</h4>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content" style="display: none;">
+                    <h5>{{ diagnosis.diagnosis }}</h5>
+                    <p>ICD Code: {{ diagnosis.icd_code }}</p>
+                    <p>Source: {{ diagnosis.source }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No diagnoses recorded</p>
+    {% endif %}
+
+    <h3>Vitals</h3>
+    {% if vitals %}
+        {% for vital in vitals %}
+            <div class="data-card collapsible">
+                <div class="card-header">
+                    <h4>{{ vital.date|date }}</h4>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content" style="display: none;">
+                    <p>BP: {{ vital.blood_pressure }}</p>
+                    <p>Temp: {{ vital.temperature }}</p>
+                    <p>Pulse: {{ vital.pulse }}</p>
+                    <p>Respirations: {{ vital.respirations }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No vitals recorded</p>
+    {% endif %}
+</div> 

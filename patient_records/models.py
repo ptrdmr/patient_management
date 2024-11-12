@@ -175,7 +175,7 @@ class Symptoms(models.Model):
 class Medications(models.Model):
     id = models.CharField(max_length=100, primary_key=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    date = models.DateField()
+    date_prescribed = models.DateField()
     drug = models.CharField(max_length=200)
     dose = models.CharField(max_length=100)
     route = models.CharField(max_length=100)
@@ -183,6 +183,12 @@ class Medications(models.Model):
     prn = models.BooleanField(default=False)
     dc_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['-date_prescribed']),
+            models.Index(fields=['patient', '-date_prescribed']),
+        ]
 
 class Measurements(models.Model):
     id = models.CharField(max_length=100, primary_key=True)
@@ -253,4 +259,24 @@ class AuditTrail(models.Model):
 
     def __str__(self):
         return f"{self.action} by {self.user} on {self.timestamp}"
+
+# Add this model after your existing models
+class ClinicalNotes(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    date = models.DateField()
+    provider = models.ForeignKey(Provider, on_delete=models.SET_NULL, null=True)
+    notes = models.TextField()
+    source = models.CharField(max_length=100, default='manual')
+    
+    class Meta:
+        ordering = ['-date']
+        verbose_name = 'Clinical Note'
+        verbose_name_plural = 'Clinical Notes'
+        indexes = [
+            models.Index(fields=['-date']),
+            models.Index(fields=['patient', '-date']),
+        ]
+
+    def __str__(self):
+        return f"Clinical Note - {self.patient} - {self.date}"
 

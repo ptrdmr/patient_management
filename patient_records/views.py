@@ -14,6 +14,12 @@ import csv
 from pathlib import Path
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import user_passes_test
+from django.template.loader import render_to_string
+from django.core.exceptions import ObjectDoesNotExist
+import logging
+from django.core.paginator import PageNotAnInteger, EmptyPage
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def home(request):
@@ -110,7 +116,7 @@ def patient_detail(request, patient_id):
     vitals = Vitals.objects.filter(patient=patient).order_by('-date')
     cbc_labs = CbcLabs.objects.filter(patient=patient).order_by('-date')
     cmp_labs = CmpLabs.objects.filter(patient=patient).order_by('-date')
-    medications = Medications.objects.filter(patient=patient).order_by('-date')
+    medications = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
     measurements = Measurements.objects.filter(patient=patient).order_by('-date')
     symptoms = Symptoms.objects.filter(patient=patient).order_by('-date')
     audit_entries = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')[:5]
@@ -630,3 +636,96 @@ def delete_record(request, model_name, record_id):
         return JsonResponse({'error': 'Record not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def patient_tab_data(request, patient_id, tab_name):
+    try:
+        patient = Patient.objects.get(id=patient_id)
+        page = request.GET.get('page', 1)
+        items_per_page = 10
+
+        if tab_name == "labs":
+            # Get both types of labs - note the correct model names
+            cmp_queryset = CmpLabs.objects.filter(patient=patient).order_by('-date')
+            cbc_queryset = CbcLabs.objects.filter(patient=patient).order_by('-date')
+            
+            # Paginate both sets
+            cmp_paginator = Paginator(cmp_queryset, items_per_page)
+            cbc_paginator = Paginator(cbc_queryset, items_per_page)
+            
+            cmp_page_obj = cmp_paginator.get_page(page)
+            cbc_page_obj = cbc_paginator.get_page(page)
+            
+            html = render_to_string('patient_records/partials/_lab_results.html', {
+                'cmp_labs': cmp_page_obj,
+                'cbc_labs': cbc_page_obj,
+                'patient': patient
+            }, request=request)
+            
+            return JsonResponse({'html': html})
+
+        elif tab_name == "medications":
+            queryset = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
+            paginator = Paginator(queryset, items_per_page)
+            page_obj = paginator.get_page(page)
+            
+            html = render_to_string('patient_records/partials/_medications.html', {
+                'medications': page_obj,
+                'patient': patient
+            }, request=request)
+
+        elif tab_name == "clinical":
+            diagnoses = Diagnosis.objects.filter(patient=patient).order_by('-date')
+            vitals = Vitals.objects.filter(patient=patient).order_by('-date')
+            clinical_notes = ClinicalNotes.objects.filter(patient=patient).order_by('-date')
+            
+            # Combine all clinical data
+            context = {
+                'diagnoses': diagnoses,
+                'vitals': vitals,
+                'clinical_notes': clinical_notes,
+                'patient': patient
+            }
+            
+            html = render_to_string('patient_records/partials/_clinical_data.html', context, request=request)
+
+        elif tab_name == "history":
+            queryset = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')
+            paginator = Paginator(queryset, items_per_page)
+            page_obj = paginator.get_page(page)
+            
+            html = render_to_string('patient_records/partials/_history.html', {
+                'audit_entries': page_obj,
+                'patient': patient
+            }, request=request)
+
+        return JsonResponse({
+            'html': html,
+            'success': True
+        })
+
+    except Exception as e:
+        logger.error(f"Error loading tab data: {str(e)}")
+        return JsonResponse({
+            'error': str(e),
+            'success': False
+        }, status=500)
+
+@login_required
+def medications_api(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+    page = request.GET.get('page', 1)
+    
+    queryset = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
+    paginator = Paginator(queryset, 20)
+    medications = paginator.get_page(page)
+    
+    context = {
+        'medications': medications,
+        'patient': patient,
+    }
+    
+    return JsonResponse({
+        'html': render_to_string('patient_records/partials/_medications.html', context),
+        'success': True
+    })

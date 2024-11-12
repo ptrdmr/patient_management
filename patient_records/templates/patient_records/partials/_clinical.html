@@ -1,0 +1,26 @@
+<div class="clinical-data">
+    <h3>Clinical Notes</h3>
+    
+    <div class="pagination-info">
+        Showing records {{ clinical_notes.start_index }} - {{ clinical_notes.end_index }} 
+        of {{ clinical_notes.paginator.count }} total records
+    </div>
+
+    {% if clinical_notes %}
+        {% for note in clinical_notes %}
+            <div class="data-card collapsible">
+                <div class="card-header">
+                    <span class="date">{{ note.date|date:"M d, Y" }}</span>
+                    <span class="provider">{{ note.provider }}</span>
+                </div>
+                <div class="collapsible-content" style="display: none;">
+                    <p>{{ note.notes }}</p>
+                </div>
+            </div>
+        {% endfor %}
+        
+        {% include 'components/_pagination.html' with page_obj=clinical_notes %}
+    {% else %}
+        <p>No clinical notes recorded</p>
+    {% endif %}
+</div> 

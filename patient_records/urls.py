@@ -8,7 +8,7 @@ urlpatterns = [
     # Patient related URLs
     path('patient/add/', views.add_patient, name='add_patient'),
     path('patients/', views.patient_list, name='patient_list'),
-    path('patient/<str:patient_id>/', views.patient_detail, name='patient_detail'),
+    path('patient/<int:patient_id>/', views.patient_detail, name='patient_detail'),
     
     # Clinical data entry URLs
     path('patient/<str:patient_id>/diagnosis/add/', views.add_diagnosis, name='add_diagnosis'),
@@ -27,4 +27,5 @@ urlpatterns = [
     path('provider/<int:provider_id>/edit/', views.edit_provider, name='edit_provider'),
     path('api/icd-lookup/', views.icd_code_lookup, name='icd_code_lookup'),
     path('delete-record/<str:model_name>/<int:record_id>/', views.delete_record, name='delete_record'),
+    path('patient/<int:patient_id>/tab/<str:tab_name>/', views.patient_tab_data, name='patient_tab_data'),
 ]
