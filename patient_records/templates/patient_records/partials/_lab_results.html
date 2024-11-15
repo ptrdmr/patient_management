@@ -1,5 +1,12 @@
 <div class="labs-data">
-    <h3>Laboratory Results</h3>
+    <div class="section-header">
+        <h3>Laboratory Results</h3>
+        <div class="action-buttons">
+            <a href="{% url 'add_labs' patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add Lab Results
+            </a>
+        </div>
+    </div>
     
     <!-- Tab Navigation -->
     <div class="lab-tabs">
@@ -10,15 +17,17 @@
     <!-- CMP Labs Section -->
     <div class="lab-content active" id="cmp-labs">
         <div class="pagination-info">
-            Showing records {{ cmp_labs.start_index }} - {{ cmp_labs.end_index }} 
-            of {{ cmp_labs.paginator.count }} total records
+            Showing records {{ labs.start_index }} - {{ labs.end_index }} 
+            of {{ labs.paginator.count }} total records
         </div>
 
-        {% if cmp_labs %}
-            {% for lab in cmp_labs %}
+        {% if labs %}
+            {% for lab in labs %}
                 <div class="data-card collapsible">
                     <div class="card-header">
-                        <h4>{{ lab.date|date }}</h4>
+                        <div class="header-content">
+                            <span class="date">{{ lab.date|date }}</span>
+                        </div>
                         <span class="collapse-icon">▼</span>
                     </div>
                     <div class="card-content" style="display: none;">
@@ -34,9 +43,9 @@
                 </div>
             {% endfor %}
             
-            {% include 'components/_pagination.html' with page_obj=cmp_labs %}
+            {% include 'components/_pagination.html' with page_obj=labs %}
         {% else %}
-            <p>No CMP results recorded</p>
+            <p>No lab results recorded</p>
         {% endif %}
     </div>
 
@@ -51,7 +60,9 @@
             {% for lab in cbc_labs %}
                 <div class="data-card collapsible">
                     <div class="card-header">
-                        <h4>{{ lab.date|date }}</h4>
+                        <div class="header-content">
+                            <span class="date">{{ lab.date|date }}</span>
+                        </div>
                         <span class="collapse-icon">▼</span>
                     </div>
                     <div class="card-content" style="display: none;">

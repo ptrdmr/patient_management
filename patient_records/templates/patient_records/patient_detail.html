@@ -2,271 +2,61 @@
 {% load static %}
 
 {% block content %}
-<meta name="csrf-token" content="{{ csrf_token }}">
+<div class="patient-header">
+    <h1>{{ patient.full_name }}</h1>
+    <p>DOB: {{ patient.date_of_birth|date:"M d, Y" }} | Gender: {{ patient.gender }}</p>
+</div>
 
-<div class="patient-details">
-    {% include 'components/_patient_header.html' %}
-
-    <div class="tab-container">
-        <!-- Tab Navigation -->
-        <div class="tab-buttons">
-            <button class="tab-button" data-tab="overview">Overview</button>
-            <button class="tab-button" data-tab="clinical">Clinical Data</button>
-            <button class="tab-button" data-tab="medications">Medications</button>
-            <button class="tab-button" data-tab="labs">Lab Results</button>
-            <button class="tab-button" data-tab="history">History</button>
-        </div>
-
-        <!-- Tab Contents -->
-        <div class="tab-contents">
-            <!-- Overview Tab -->
-            <div id="overview-tab" class="tab-content active">
-                <div class="info-section">
-                    <h2>Basic Information</h2>
-                    <div class="info-grid">
-                        <!-- Basic patient info here -->
-                        {% include "patient_records/partials/_basic_info.html" %}
-                    </div>
-                </div>
-                
-                <div class="info-section">
-                    <h2>Recent Activity</h2>
-                    {% include "patient_records/partials/_audit_trail.html" %}
-                </div>
-            </div>
-
-            <!-- Clinical Data Tab -->
-            <div id="clinical-tab" class="tab-content">
-                <div class="action-buttons">
-                    <a href="{% url 'add_diagnosis' patient.id %}" class="btn">Add Diagnosis</a>
-                    <a href="{% url 'add_vitals' patient.id %}" class="btn">Add Vitals</a>
-                </div>
-                <div id="clinical-container">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-
-            <!-- Medications Tab -->
-            <div id="medications-tab" class="tab-content">
-                <div class="action-buttons">
-                    <a href="{% url 'add_medications' patient.id %}" class="btn">Add Medication</a>
-                </div>
-                <div id="medications-container">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-
-            <!-- Lab Results Tab -->
-            <div id="labs-tab" class="tab-content">
-                <div class="action-buttons">
-                    <a href="{% url 'add_labs' patient.id %}" class="btn">Add Lab Results</a>
-                </div>
-                <div id="labs-container">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-
-            <!-- History Tab -->
-            <div id="history-tab" class="tab-content">
-                <div id="history-container">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-        </div>
+<div class="tab-container" data-patient-id="{{ patient.id }}">
+    <div class="tab-nav">
+        <a href="#" class="tab active" data-tab="overview">Overview</a>
+        <a href="#" class="tab" data-tab="clinical">Clinical Data</a>
+        <a href="#" class="tab" data-tab="medications">Medications</a>
+        <a href="#" class="tab" data-tab="labs">Lab Results</a>
+        <a href="#" class="tab" data-tab="history">History</a>
+    </div>
+    <div class="tab-content">
+        <!-- Content will be loaded here -->
     </div>
 </div>
 
 {% block extra_css %}
 <style>
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #3498db;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: 20px auto;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    .tab-container {
-        margin-top: 2rem;
-    }
-
-    .tab-buttons {
+    .tab-container { margin-top: 2rem; }
+    .tab-nav {
+        display: flex;
         border-bottom: 1px solid #dee2e6;
         margin-bottom: 1rem;
     }
-
-    .tab-button {
+    .tab {
         padding: 0.5rem 1rem;
         margin-right: 0.5rem;
+        text-decoration: none;
+        color: #495057;
         border: 1px solid transparent;
-        border-bottom: none;
-        background: none;
         cursor: pointer;
     }
-
-    .tab-button.active {
-        border-color: #dee2e6;
-        border-bottom-color: white;
+    .tab:hover {
+        border-color: #e9ecef #e9ecef #dee2e6;
+    }
+    .tab.active {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
         margin-bottom: -1px;
         border-radius: 0.25rem 0.25rem 0 0;
-        background-color: white;
     }
-
     .tab-content {
-        display: none;
         padding: 1rem;
     }
+    
 
-    .tab-content.active {
-        display: block;
-    }
-
-    .info-section {
-        margin-bottom: 2rem;
-        padding: 1rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-    }
-
-    .action-buttons {
-        margin-bottom: 1rem;
-    }
-
-    .data-card {
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        background-color: white;
-    }
-
-    .error-message {
-        text-align: center;
-        padding: 2rem;
-        color: #dc3545;
-    }
-
-    .loading-spinner {
-        display: flex;
-        justify-content: center;
-        padding: 2rem;
-    }
-
-    .collapsible .card-header {
-        cursor: pointer;
+    .section-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.25rem 0.5rem;
-        background-color: #f8f9fa;
-    }
-
-    .collapsible .card-header h4 {
-        font-size: 0.9rem;
-        margin: 0;
-        font-weight: normal;
-    }
-
-    .collapsible .card-content {
-        display: none;
-        padding: 0.5rem;
-        border-top: 1px solid #dee2e6;
-    }
-
-    .collapsible.active .card-content {
-        display: block;
-    }
-
-    .collapse-icon {
-        font-size: 0.8rem;
-        transition: transform 0.3s ease;
-    }
-
-    .collapsible.active .collapse-icon {
-        transform: rotate(180deg);
-    }
-
-    .data-card.collapsible {
-        margin-bottom: 0.25rem;
-        border: 1px solid #dee2e6;
-        border-radius: 0.25rem;
-    }
-
-    .pagination {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        margin-top: 20px;
-        flex-wrap: wrap;
-    }
-    
-    .page-link {
-        padding: 8px 12px;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        color: #007bff;
-        text-decoration: none;
-        cursor: pointer;
-    }
-    
-    .page-link.active {
-        background-color: #007bff;
-        color: white;
-        border-color: #007bff;
-    }
-    
-    .page-link:hover:not(.active) {
-        background-color: #e9ecef;
-    }
-
-    .page-ellipsis {
-        padding: 8px 12px;
-        color: #6c757d;
-    }
-
-    /* Add lab tabs styling here */
-    .lab-tabs {
         margin-bottom: 1rem;
-        border-bottom: 1px solid #dee2e6;
-    }
-
-    .lab-tab {
-        padding: 0.5rem 1rem;
-        margin-right: 0.5rem;
-        border: 1px solid transparent;
-        background: none;
-        cursor: pointer;
-    }
-
-    .lab-tab.active {
-        border-color: #dee2e6;
-        border-bottom-color: white;
-        margin-bottom: -1px;
-        border-radius: 0.25rem 0.25rem 0 0;
-    }
-
-    .lab-content {
-        display: none;
-    }
-
-    .lab-content.active {
-        display: block;
     }
 </style>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    const patientId = {{ patient.id }};  // Make sure this is available
-</script>
-<script src="{% static 'js/patient_detail.js' %}"></script>
 {% endblock %}
 {% endblock %}

@@ -1,6 +1,13 @@
 <div class="medications-data">
-    <h3>Current Medications</h3>
-    
+    <div class="section-header">
+        <h2>Current Medications</h2>
+        <div class="action-buttons">
+            <a href="{% url 'add_medications' patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add Medication
+            </a>
+        </div>
+    </div>
+
     <div class="pagination-info">
         Showing records {{ medications.start_index }} - {{ medications.end_index }} 
         of {{ medications.paginator.count }} total records
@@ -10,16 +17,18 @@
         {% for med in medications %}
             <div class="data-card collapsible">
                 <div class="card-header">
-                    <h4>{{ med.date_prescribed|date }}</h4>
+                    <div class="header-content">
+                        <span class="date">{{ med.date_prescribed|date }}</span>
+                        <span>{{ med.drug }}</span>
+                    </div>
                     <span class="collapse-icon">▼</span>
                 </div>
                 <div class="card-content" style="display: none;">
-                    <h5>{{ med.drug }}</h5>
-                    <p>Dosage: {{ med.dose }}</p>
-                    <p>Frequency: {{ med.frequency }}</p>
-                    <p>Route: {{ med.route }}</p>
+                    <p><strong>Dosage:</strong> {{ med.dose }}</p>
+                    <p><strong>Frequency:</strong> {{ med.frequency }}</p>
+                    <p><strong>Route:</strong> {{ med.route }}</p>
                     {% if med.notes %}
-                        <p>Notes: {{ med.notes }}</p>
+                        <p><strong>Notes:</strong> {{ med.notes }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -27,6 +36,6 @@
         
         {% include 'components/_pagination.html' with page_obj=medications %}
     {% else %}
-        <p>No medications recorded</p>
+        <p class="no-data">No medications recorded</p>
     {% endif %}
 </div>

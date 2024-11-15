@@ -465,47 +465,50 @@ class RecordRequestLogForm(SectionedForm):
 class PatientForm(SectionedForm):
     class Meta:
         model = Patient
-        fields = ['first_name', 'middle_name', 'last_name', 'date_of_birth', 
-                 'gender', 'ssn', 'allergies', 'code_status']
+        fields = [
+            # Basic Information
+            'first_name', 'middle_name', 'last_name', 'date_of_birth', 
+            'gender', 'ssn', 'marital_status',
+            
+            # Contact Information
+            'street_address', 'city', 'state', 'zip',
+            'patient_phone', 'patient_email',
+            
+            # Power of Attorney
+            'poa_name', 'relationship', 'poa_contact',
+            
+            # Medical Information
+            'allergies', 'code_status'
+        ]
         widgets = {
             'date_of_birth': forms.DateInput(
                 attrs={
                     'type': 'date',
                     'class': 'form-control',
-                    'max': datetime.date.today().isoformat()  # Prevents future dates
+                    'max': datetime.date.today().isoformat()
                 }
             ),
-            # ... other widgets ...
         }
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        instance.date = datetime.date.today()
-        if commit:
-            instance.save()
-        return instance
 
     def get_sections(self):
         return [
             {
                 'title': 'Basic Information',
-                'fields': ['first_name', 'middle_name', 'last_name', 'date_of_birth']
+                'fields': ['first_name', 'middle_name', 'last_name', 
+                          'date_of_birth', 'gender', 'ssn', 'marital_status']
             },
             {
-                'title': 'Demographics',
-                'fields': ['gender', 'ssn']
+                'title': 'Contact Information',
+                'fields': ['street_address', 'city', 'state', 'zip',
+                          'patient_phone', 'patient_email']
+            },
+            {
+                'title': 'Power of Attorney',
+                'fields': ['poa_name', 'relationship', 'poa_contact']
             },
             {
                 'title': 'Medical Information',
                 'fields': ['allergies', 'code_status']
             }
         ]
-
-    def clean_ssn(self):
-        ssn = self.cleaned_data['ssn']
-        # Remove any existing hyphens and add them back in correct positions
-        ssn = ''.join(c for c in ssn if c.isdigit())
-        if len(ssn) != 9:
-            raise forms.ValidationError("SSN must be 9 digits")
-        return f"{ssn[:3]}-{ssn[3:5]}-{ssn[5:]}"
 

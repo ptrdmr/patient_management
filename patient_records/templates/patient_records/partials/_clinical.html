@@ -1,26 +1,78 @@
 <div class="clinical-data">
-    <h3>Clinical Notes</h3>
+    <div class="section-header">
+        <h3>Clinical Data</h3>
+        <div class="action-buttons">
+            <a href="{% url 'add_diagnosis' patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add Diagnosis
+            </a>
+            <a href="{% url 'add_vitals' patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add Vitals
+            </a>
+        </div>
+    </div>
     
+    <!-- Diagnoses Section -->
+    <h4>Diagnoses</h4>
     <div class="pagination-info">
-        Showing records {{ clinical_notes.start_index }} - {{ clinical_notes.end_index }} 
-        of {{ clinical_notes.paginator.count }} total records
+        Showing records {{ diagnoses.start_index }} - {{ diagnoses.end_index }} 
+        of {{ diagnoses.paginator.count }} total records
     </div>
 
-    {% if clinical_notes %}
-        {% for note in clinical_notes %}
+    {% if diagnoses %}
+        {% for diagnosis in diagnoses %}
             <div class="data-card collapsible">
                 <div class="card-header">
-                    <span class="date">{{ note.date|date:"M d, Y" }}</span>
-                    <span class="provider">{{ note.provider }}</span>
+                    <div class="header-content">
+                        <span class="date">{{ diagnosis.date|date:"M d, Y" }}</span>
+                        <span class="diagnosis">{{ diagnosis.icd_code }} - {{ diagnosis.diagnosis }}</span>
+                    </div>
+                    <span class="collapse-icon">▼</span>
                 </div>
-                <div class="collapsible-content" style="display: none;">
-                    <p>{{ note.notes }}</p>
+                <div class="card-content" style="display: none;">
+                    {% if diagnosis.notes %}
+                        <p>{{ diagnosis.notes }}</p>
+                    {% endif %}
                 </div>
             </div>
         {% endfor %}
         
-        {% include 'components/_pagination.html' with page_obj=clinical_notes %}
+        {% include 'components/_pagination.html' with page_obj=diagnoses %}
     {% else %}
-        <p>No clinical notes recorded</p>
+        <p>No diagnoses recorded</p>
+    {% endif %}
+
+    <!-- Vitals Section -->
+    <h4>Vitals</h4>
+    <div class="pagination-info">
+        Showing records {{ vitals.start_index }} - {{ vitals.end_index }} 
+        of {{ vitals.paginator.count }} total records
+    </div>
+
+    {% if vitals %}
+        {% for vital in vitals %}
+            <div class="data-card collapsible">
+                <div class="card-header">
+                    <div class="header-content">
+                        <span class="date">{{ vital.date|date:"M d, Y" }}</span>
+                    </div>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content" style="display: none;">
+                    <p>BP: {{ vital.blood_pressure }}</p>
+                    <p>Temp: {{ vital.temperature }}°F</p>
+                    <p>SpO2: {{ vital.spo2 }}%</p>
+                    <p>Pulse: {{ vital.pulse }}</p>
+                    <p>Respirations: {{ vital.respirations }}</p>
+                    <p>Pain: {{ vital.pain }}/10</p>
+                    {% if vital.supp_o2 %}
+                        <p>Supplemental O2: Yes</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+        
+        {% include 'components/_pagination.html' with page_obj=vitals %}
+    {% else %}
+        <p>No vitals recorded</p>
     {% endif %}
 </div> 

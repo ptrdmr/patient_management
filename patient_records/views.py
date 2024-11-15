@@ -18,6 +18,9 @@ from django.template.loader import render_to_string
 from django.core.exceptions import ObjectDoesNotExist
 import logging
 from django.core.paginator import PageNotAnInteger, EmptyPage
+from django.http import HttpResponse
+from django.db import connection
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +36,13 @@ def home(request):
 @login_required
 def add_patient(request):
     """Add new patient demographics"""
-    breadcrumbs = [
-        {'label': 'Patients', 'url': reverse('patient_list')},
-        {'label': 'Add Patient', 'url': None}
-    ]
-    
     if request.method == 'POST':
         form = PatientForm(request.POST)
         if form.is_valid():
-            patient = form.save()
+            patient = form.save(commit=False)  # Don't save to DB yet
+            patient.date = datetime.date.today()  # Set the date field
+            patient.save()  # Now save to DB
+            
             AuditTrail.objects.create(
                 patient=patient, 
                 action='CREATE', 
@@ -68,7 +69,10 @@ def add_patient(request):
     
     context = {
         'form': form,
-        'breadcrumbs': breadcrumbs,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': 'Add Patient', 'url': None}
+        ],
         'form_title': 'Add New Patient',
         'submit_label': 'Save Patient',
         'cancel_url': reverse('patient_list'),
@@ -108,42 +112,32 @@ def patient_list(request):
 
 @login_required
 def patient_detail(request, patient_id):
-    """View detailed patient information"""
-    patient = get_object_or_404(Patient, id=patient_id)
-    
-    # Get all related data
-    diagnoses = Diagnosis.objects.filter(patient=patient).order_by('-date')
-    vitals = Vitals.objects.filter(patient=patient).order_by('-date')
-    cbc_labs = CbcLabs.objects.filter(patient=patient).order_by('-date')
-    cmp_labs = CmpLabs.objects.filter(patient=patient).order_by('-date')
-    medications = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
-    measurements = Measurements.objects.filter(patient=patient).order_by('-date')
-    symptoms = Symptoms.objects.filter(patient=patient).order_by('-date')
-    audit_entries = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')[:5]
-    
-    breadcrumbs = [
-        {'label': 'Patients', 'url': reverse('patient_list')},
-        {'label': f'Patient {patient_id}', 'url': None}
-    ]
+    try:
+        # Get patient with all fields
+        patient = Patient.objects.get(id=patient_id)
+        
+        # Create context with processed data
+        context = {
+            'patient': patient,
+            'recent_medications': Medications.objects.filter(patient=patient).order_by('-date_prescribed')[:5],
+            'audit_trail': AuditTrail.objects.filter(patient=patient).order_by('-timestamp')[:5],
+            'breadcrumbs': [
+                {'label': 'Patients', 'url': reverse('patient_list')},
+                {'label': f"{patient.first_name} {patient.last_name}", 'url': None}
+            ],
+        }
 
-    context = {
-        'patient': patient,
-        'diagnoses': diagnoses,
-        'vitals': vitals,
-        'cbc_labs': cbc_labs,
-        'cmp_labs': cmp_labs,
-        'medications': medications,
-        'measurements': measurements,
-        'symptoms': symptoms,
-        'audit_entries': audit_entries,
-        'breadcrumbs': breadcrumbs,
-        'page_title': f'Patient {patient_id} Details'
-    }
-    
-    # Add this for debugging
-    print("Context data:", {k: bool(v) for k, v in context.items() if k != 'breadcrumbs'})
-    
-    return render(request, 'patient_records/patient_detail.html', context)
+        # Handle AJAX tab loading
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            tab = request.GET.get('tab', 'overview')
+            template = f'patient_records/partials/_{tab}.html'
+            return render(request, template, context)
+
+        return render(request, 'patient_records/patient_detail.html', context)
+        
+    except Patient.DoesNotExist:
+        messages.error(request, 'Patient not found')
+        return redirect('patient_list')
 
 @login_required
 def add_diagnosis(request, patient_id):
@@ -550,21 +544,25 @@ def custom_logout(request):
     logout(request)
     return redirect('login')
 
-def form_view(request):
+def your_form_view(request):
     if request.method == 'POST':
         form = YourForm(request.POST)
         if form.is_valid():
-            form.save()
+            instance = form.save()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'redirect_url': reverse('success_url')
-                })
+                return JsonResponse({'success': True, 'id': instance.id})
             return redirect('success_url')
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'errors': form.errors}, status=400)
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'errors': form.errors}, status=400)
+    else:
+        form = YourForm()
     
-    # ... rest of your view code
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('components/modal/_form_modal.html', {'form': form}, request=request)
+        return HttpResponse(html)
+    
+    return render(request, 'your_template.html', {'form': form})
 
 @require_GET
 def icd_code_lookup(request):
@@ -595,7 +593,7 @@ def icd_code_lookup(request):
             'results': results[:5]  # Still limit to 5 results for performance
         })
     except Exception as e:
-        print(f"Error in ICD lookup: {str(e)}")  # Add logging
+        logger.error(f"Error in ICD lookup: {str(e)}")
         return JsonResponse({
             'error': 'An error occurred during ICD code lookup'
         }, status=400)
@@ -640,65 +638,97 @@ def delete_record(request, model_name, record_id):
 @login_required
 def patient_tab_data(request, patient_id, tab_name):
     try:
-        patient = Patient.objects.get(id=patient_id)
+        patient = get_object_or_404(Patient, id=patient_id)
         page = request.GET.get('page', 1)
         items_per_page = 10
-
-        if tab_name == "labs":
-            # Get both types of labs - note the correct model names
-            cmp_queryset = CmpLabs.objects.filter(patient=patient).order_by('-date')
-            cbc_queryset = CbcLabs.objects.filter(patient=patient).order_by('-date')
+        
+        if tab_name == "overview":
+            # Overview tab doesn't need pagination
+            context = {
+                'patient': patient,
+                'recent_vitals': Vitals.objects.filter(patient=patient).order_by('-date')[:5],
+                'recent_medications': Medications.objects.filter(patient=patient).order_by('-date_prescribed')[:5],
+            }
+            template = 'patient_records/partials/_overview.html'
             
-            # Paginate both sets
-            cmp_paginator = Paginator(cmp_queryset, items_per_page)
-            cbc_paginator = Paginator(cbc_queryset, items_per_page)
+        elif tab_name == "labs":
+            # Combine and sort labs by date
+            cmp_labs = list(CmpLabs.objects.filter(patient=patient).order_by('-date'))
+            cbc_labs = list(CbcLabs.objects.filter(patient=patient).order_by('-date'))
+            all_labs = sorted(cmp_labs + cbc_labs, key=lambda x: x.date, reverse=True)
             
-            cmp_page_obj = cmp_paginator.get_page(page)
-            cbc_page_obj = cbc_paginator.get_page(page)
+            paginator = Paginator(all_labs, items_per_page)
+            try:
+                page_obj = paginator.page(page)
+            except (PageNotAnInteger, EmptyPage):
+                page_obj = paginator.page(1)
             
-            html = render_to_string('patient_records/partials/_lab_results.html', {
-                'cmp_labs': cmp_page_obj,
-                'cbc_labs': cbc_page_obj,
-                'patient': patient
-            }, request=request)
+            context = {
+                'patient': patient,
+                'labs': page_obj,
+                'page_obj': page_obj,
+            }
+            template = 'patient_records/partials/_lab_results.html'
             
-            return JsonResponse({'html': html})
-
         elif tab_name == "medications":
-            queryset = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
-            paginator = Paginator(queryset, items_per_page)
-            page_obj = paginator.get_page(page)
-            
-            html = render_to_string('patient_records/partials/_medications.html', {
+            medications = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
+            paginator = Paginator(medications, items_per_page)
+            try:
+                page_obj = paginator.page(page)
+            except (PageNotAnInteger, EmptyPage):
+                page_obj = paginator.page(1)
+                
+            context = {
+                'patient': patient,
                 'medications': page_obj,
-                'patient': patient
-            }, request=request)
-
+                'page_obj': page_obj,
+            }
+            template = 'patient_records/partials/_medications.html'
+            
+        elif tab_name == "history":
+            audit_entries = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')
+            paginator = Paginator(audit_entries, items_per_page)
+            try:
+                page_obj = paginator.page(page)
+            except (PageNotAnInteger, EmptyPage):
+                page_obj = paginator.page(1)
+                
+            context = {
+                'patient': patient,
+                'audit_entries': page_obj,
+                'page_obj': page_obj,
+            }
+            template = 'patient_records/partials/_history.html'
+            
         elif tab_name == "clinical":
+            # Paginate both diagnoses and vitals
             diagnoses = Diagnosis.objects.filter(patient=patient).order_by('-date')
             vitals = Vitals.objects.filter(patient=patient).order_by('-date')
-            clinical_notes = ClinicalNotes.objects.filter(patient=patient).order_by('-date')
             
-            # Combine all clinical data
+            diagnoses_paginator = Paginator(diagnoses, items_per_page)
+            vitals_paginator = Paginator(vitals, items_per_page)
+            
+            try:
+                diagnoses_page = diagnoses_paginator.page(page)
+                vitals_page = vitals_paginator.page(page)
+            except (PageNotAnInteger, EmptyPage):
+                diagnoses_page = diagnoses_paginator.page(1)
+                vitals_page = vitals_paginator.page(1)
+                
             context = {
-                'diagnoses': diagnoses,
-                'vitals': vitals,
-                'clinical_notes': clinical_notes,
-                'patient': patient
+                'patient': patient,
+                'diagnoses': diagnoses_page,
+                'vitals': vitals_page,
             }
+            template = 'patient_records/partials/_clinical.html'
             
-            html = render_to_string('patient_records/partials/_clinical_data.html', context, request=request)
+        else:
+            return JsonResponse({
+                'error': f'Invalid tab type: {tab_name}',
+                'success': False
+            }, status=400)
 
-        elif tab_name == "history":
-            queryset = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')
-            paginator = Paginator(queryset, items_per_page)
-            page_obj = paginator.get_page(page)
-            
-            html = render_to_string('patient_records/partials/_history.html', {
-                'audit_entries': page_obj,
-                'patient': patient
-            }, request=request)
-
+        html = render_to_string(template, context, request=request)
         return JsonResponse({
             'html': html,
             'success': True

@@ -1,0 +1,66 @@
+<div class="overview-data">
+    <div class="data-card collapsible">
+        <div class="card-header">
+            <div class="header-content">
+                <h3>Basic Information</h3>
+            </div>
+            <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-content">
+            <p><strong>Name:</strong> {{ patient.first_name }} {{ patient.middle_name }} {{ patient.last_name }}</p>
+            <p><strong>DOB:</strong> {{ patient.date_of_birth|date:"M d, Y" }}</p>
+            <p><strong>Gender:</strong> {{ patient.get_gender_display }}</p>
+            <p><strong>SSN:</strong> {{ patient.ssn }}</p>
+            <p><strong>Marital Status:</strong> {{ patient.marital_status|default:"None" }}</p>
+        </div>
+    </div>
+
+    <div class="data-card collapsible">
+        <div class="card-header">
+            <div class="header-content">
+                <h3>Contact Information</h3>
+            </div>
+            <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-content">
+            <p><strong>Address:</strong> {{ patient.street_address|default:"None" }}</p>
+            <p><strong>City:</strong> {{ patient.city|default:"None" }}</p>
+            <p><strong>State:</strong> {{ patient.state|default:"None" }}</p>
+            <p><strong>ZIP:</strong> {{ patient.zip|default:"None" }}</p>
+            <p><strong>Phone:</strong> {{ patient.patient_phone|default:"None" }}</p>
+            <p><strong>Email:</strong> {{ patient.patient_email|default:"None" }}</p>
+        </div>
+    </div>
+
+    <div class="data-card collapsible">
+        <div class="card-header">
+            <div class="header-content">
+                <h3>Power of Attorney</h3>
+            </div>
+            <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-content">
+            <p><strong>POA Name:</strong> {{ patient.poa_name|default:"None" }}</p>
+            <p><strong>Relationship:</strong> {{ patient.relationship|default:"None" }}</p>
+            <p><strong>POA Contact:</strong> {{ patient.poa_contact|default:"None" }}</p>
+        </div>
+    </div>
+
+    <div class="data-card collapsible">
+        <div class="card-header">
+            <div class="header-content">
+                <h3>Current Medications</h3>
+            </div>
+            <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-content">
+            {% if recent_medications %}
+                {% for med in recent_medications %}
+                    <p>{{ med.drug }} - {{ med.dose }} {{ med.frequency }}</p>
+                {% endfor %}
+            {% else %}
+                <p>No current medications</p>
+            {% endif %}
+        </div>
+    </div>
+</div>

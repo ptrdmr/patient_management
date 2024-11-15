@@ -53,33 +53,41 @@ class Patient(models.Model):
     height_cm = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Height (cm)", null=True, blank=True)
     height_inches = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Height (inches)", null=True, blank=True)
 
+    def get_gender_display(self):
+        return dict(self.GENDER_CHOICES).get(self.gender, 'None')
+
     def __str__(self):
-        if self.first_name and self.last_name:
-            return f"{self.last_name}, {self.first_name} ({self.patient_number})"
-        return f"Patient {self.patient_number}"
+        return f"{self.first_name} {self.last_name}"
 
     def save(self, *args, **kwargs):
-        # Generate patient number if not exists
+        # Generate patient number if it doesn't exist
         if not self.patient_number:
-            year = datetime.datetime.now().year
+            year = datetime.date.today().year
+            # Get the last patient number for this year
             last_patient = Patient.objects.filter(
-                patient_number__startswith=f"{year}"
+                patient_number__startswith=str(year)
             ).order_by('-patient_number').first()
             
             if last_patient:
-                last_number = int(last_patient.patient_number[4:])
-                new_number = last_number + 1
+                # Extract the sequence number and increment
+                last_seq = int(last_patient.patient_number[-6:])
+                new_seq = str(last_seq + 1).zfill(6)
             else:
-                new_number = 1
+                # First patient of the year
+                new_seq = '000001'
             
-            self.patient_number = f"{year}{new_number:06d}"
+            self.patient_number = f'{year}{new_seq}'
+
+        # Handle empty strings for fields
+        fields_to_check = ['marital_status', 'street_address', 'city', 'state', 
+                          'zip', 'patient_phone', 'patient_email', 'poa_name', 
+                          'relationship', 'poa_contact']
         
-        # Height conversion logic - updated to handle Decimal types
-        if self.height_cm and not self.height_inches:
-            self.height_inches = float(self.height_cm) / 2.54
-        elif self.height_inches and not self.height_cm:
-            self.height_cm = float(self.height_inches) * 2.54
-        
+        for field in fields_to_check:
+            value = getattr(self, field)
+            if value == '':
+                setattr(self, field, None)
+                
         super().save(*args, **kwargs)
 
     @property

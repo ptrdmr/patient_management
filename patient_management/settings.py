@@ -143,11 +143,17 @@ CSP_SCRIPT_SRC = (
     "'self'",
     "'unsafe-inline'",
     "'unsafe-eval'",
-    "chrome-extension://*"  # Allow chrome extensions
+    "'wasm-unsafe-eval'",
+    "'inline-speculation-rules'"
 )
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
-CSP_IMG_SRC = ("'self'", "data:", "https:")
+CSP_IMG_SRC = ("'self'", "data:", "blob:")
 CSP_CONNECT_SRC = ("'self'",)
+CSP_FONT_SRC = ("'self'", "data:")
+
+# Add these settings for better security while allowing modal functionality
+CSP_INCLUDE_NONCE_IN = ['script-src']
+CSP_EXCLUDE_URL_PREFIXES = ('/admin/',)
 
 # Security settings
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -157,3 +163,29 @@ X_FRAME_OPTIONS = 'DENY'
 STATICFILES_DIRS = [
     BASE_DIR / "patient_records/static",
 ]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'debug.log',
+        },
+    },
+    'loggers': {
+        'django.db.backends': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'patient_records': {  # Add this logger for our app
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}

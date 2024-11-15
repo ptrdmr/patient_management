@@ -1,8 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
     <title>{% block title %}Patient Management System{% endblock %}</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/modal.css' %}">
     <style>
         .messages {
             list-style: none;
@@ -190,6 +193,87 @@
             background-color: #ccc;
             cursor: not-allowed;
         }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn.primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn.primary:hover {
+            background-color: #0056b3;
+        }
+
+        .btn.secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn.secondary:hover {
+            background-color: #545b62;
+        }
+
+        .data-card {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 0.2rem;
+            max-width: 800px;
+        }
+
+        .card-header {
+            padding: 0.2rem 1rem;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 20px;
+            line-height: 1.2;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-header span, 
+        .header-content span {
+            line-height: 1.2;
+            font-size: 0.95rem;
+        }
+
+        .card-content, 
+        .collapsible-content {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid #dee2e6;
+            line-height: 1.4;
+        }
+
+        .date {
+            min-width: 120px;
+            display: inline-block;
+        }
+
+        .collapse-icon {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .pagination-info {
+            margin-bottom: 1rem;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
     </style>
 </head>
 <body>
@@ -204,6 +288,31 @@
         {% endblock %}
     </div>
 
-    {% block extra_js %}{% endblock %}
+    <!-- Add this modal HTML structure -->
+    <div id="baseModal" class="modal" role="dialog" aria-hidden="true">
+        <div class="modal-overlay" data-modal-close></div>
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 class="modal-title"></h2>
+                <button class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-content"></div>
+            <div class="modal-footer"></div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+<script src="{% static 'js/utils/modal-manager.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        window.modalManager = new ModalManager();
+        window.formModal = new FormModal();
+        window.confirmationModal = new ConfirmationModal();
+    });
+</script>
+<script src="{% static 'js/modals/form-modal.js' %}"></script>
+<script src="{% static 'js/modals/confirmation-modal.js' %}"></script>
+<script src="{% static 'js/patient_detail.js' %}"></script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>

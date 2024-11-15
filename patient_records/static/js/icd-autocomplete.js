@@ -1,62 +1,61 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    if (!form) {
-        console.error('No form found');
-        return;
+document.addEventListener('DOMContentLoaded', () => {
+    const diagnosisForm = document.querySelector('form');
+    if (diagnosisForm) {
+        setupAutoComplete(diagnosisForm);
     }
-    
-    form.addEventListener('input', async function(e) {
-        if (!e.target.matches('.icd-code-input')) return;
-        
-        const input = e.target;
-        const wrapper = input.closest('.icd-code-wrapper');
-        const resultsDiv = wrapper.querySelector('.autocomplete-results');
-        
-        console.log('Input event on ICD field:', input.value);
-        
-        const query = input.value.trim();
+});
+
+function setupAutoComplete(form) {
+    const icdInput = form.querySelector('input[name="icd_code"]');
+    if (!icdInput) return;
+
+    const resultsDiv = icdInput.parentElement.querySelector('.autocomplete-results');
+    if (!resultsDiv) return;
+
+    icdInput.addEventListener('input', async (e) => {
+        const query = e.target.value.trim();
         if (query.length < 1) {
             resultsDiv.style.display = 'none';
             return;
         }
-        
+
         try {
             const response = await fetch(`/api/icd-lookup/?q=${encodeURIComponent(query)}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
             const data = await response.json();
-            console.log('API response:', data);
-            
-            if (data.error) {
-                console.error('API error:', data.error);
-                return;
-            }
-            
-            resultsDiv.innerHTML = data.results.map(result => `
-                <div class="autocomplete-item" data-code="${result.code}" data-description="${result.description}">
-                    ${result.value}
-                </div>
-            `).join('');
-            
-            resultsDiv.style.display = data.results.length ? 'block' : 'none';
-            
-            // Add click handlers for results
-            resultsDiv.querySelectorAll('.autocomplete-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    input.value = this.dataset.code;
-                    const diagnosisField = document.querySelector('[name="diagnosis"]');
-                    if (diagnosisField) {
-                        diagnosisField.value = this.dataset.description;
-                    }
-                    resultsDiv.style.display = 'none';
+
+            if (data.results?.length > 0) {
+                resultsDiv.innerHTML = data.results
+                    .map(result => `
+                        <div class="autocomplete-item">
+                            ${result.code} - ${result.description}
+                        </div>
+                    `)
+                    .join('');
+                resultsDiv.style.display = 'block';
+
+                // Add click handlers
+                resultsDiv.querySelectorAll('.autocomplete-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const [code, description] = item.textContent.split(' - ');
+                        icdInput.value = code.trim();
+                        form.querySelector('input[name="diagnosis"]').value = description.trim();
+                        resultsDiv.style.display = 'none';
+                    });
                 });
-            });
-            
+            }
         } catch (error) {
             console.error('Error fetching ICD codes:', error);
             resultsDiv.style.display = 'none';
         }
     });
-}); 
+
+    // Close results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!icdInput.parentElement.contains(e.target)) {
+            resultsDiv.style.display = 'none';
+        }
+    });
+}
+
+// Make function globally available
+window.setupAutoComplete = setupAutoComplete; 
