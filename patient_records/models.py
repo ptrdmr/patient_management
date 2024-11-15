@@ -257,16 +257,36 @@ class AuditTrail(models.Model):
         ('CREATE', 'Create'),
         ('UPDATE', 'Update'),
         ('DELETE', 'Delete'),
+        ('VIEW', 'View'),
+    ]
+    
+    RECORD_TYPE_CHOICES = [
+        ('PATIENT', 'Patient Demographics'),
+        ('CLINICAL_NOTE', 'Clinical Notes'),
+        ('CBC_LAB', 'CBC Lab Results'),
+        ('CMP_LAB', 'CMP Lab Results'),
+        ('MEDICATION', 'Medications'),
+        ('SYMPTOM', 'Symptoms'),
     ]
 
     patient = models.ForeignKey('Patient', on_delete=models.CASCADE)
     action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    record_type = models.CharField(max_length=20, choices=RECORD_TYPE_CHOICES)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
-    changes = models.JSONField(default=dict)  # Provide a default empty dictionary
+    previous_values = models.JSONField(default=dict)
+    new_values = models.JSONField(default=dict)
+    ip_address = models.GenericIPAddressField(null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['patient', '-timestamp']),
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['record_type', '-timestamp']),
+        ]
 
     def __str__(self):
-        return f"{self.action} by {self.user} on {self.timestamp}"
+        return f"{self.get_action_display()} {self.get_record_type_display()} by {self.user} on {self.timestamp}"
 
 # Add this model after your existing models
 class ClinicalNotes(models.Model):

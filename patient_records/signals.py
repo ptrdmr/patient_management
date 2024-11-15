@@ -5,7 +5,6 @@ from .models import Patient, AuditTrail
 @receiver(post_save, sender=Patient)
 def log_patient_save(sender, instance, created, **kwargs):
     action = 'CREATE' if created else 'UPDATE'
-    changes = {}
     
     # Explicitly list the fields we want to track
     fields_to_track = [
@@ -26,22 +25,30 @@ def log_patient_save(sender, instance, created, **kwargs):
         'patient_email'
     ]
     
+    # Create new_values dictionary
+    new_values = {}
     for field_name in fields_to_track:
         if hasattr(instance, field_name):
-            changes[field_name] = str(getattr(instance, field_name))
+            new_values[field_name] = str(getattr(instance, field_name))
     
     AuditTrail.objects.create(
         patient=instance, 
-        action=action, 
-        user=instance.modified_by, 
-        changes=changes
+        action=action,
+        record_type='PATIENT',  # Added required field
+        user=instance.modified_by,
+        previous_values={},  # Empty for now, could track actual changes later
+        new_values=new_values,
+        ip_address=None  # Required field, but can be null
     )
 
 @receiver(post_delete, sender=Patient)
 def log_patient_delete(sender, instance, **kwargs):
     AuditTrail.objects.create(
         patient=instance, 
-        action='DELETE', 
-        user=instance.modified_by, 
-        changes={}
+        action='DELETE',
+        record_type='PATIENT',  # Added required field
+        user=instance.modified_by,
+        previous_values={},
+        new_values={},
+        ip_address=None  # Required field, but can be null
     ) 

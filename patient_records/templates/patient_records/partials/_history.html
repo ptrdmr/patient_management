@@ -10,12 +10,25 @@
         {% for entry in audit_entries %}
             <div class="data-card collapsible">
                 <div class="card-header">
-                    <span class="date">{{ entry.timestamp|date:"M d, Y H:i" }}</span>
-                    <span class="action">{{ entry.action }}</span>
+                    <div class="header-content">
+                        <span class="date">{{ entry.timestamp|date:"M d, Y H:i" }}</span>
+                        <span class="action">{{ entry.get_action_display }}</span>
+                        <span class="record-type">{{ entry.get_record_type_display }}</span>
+                    </div>
+                    <span class="collapse-icon">▼</span>
                 </div>
                 <div class="collapsible-content" style="display: none;">
-                    <p>{{ entry.details }}</p>
-                    <p class="user-info">By: {{ entry.user }}</p>
+                    {% if entry.new_values %}
+                        <div class="changes">
+                            <h4>Changes:</h4>
+                            {% for key, value in entry.new_values.items %}
+                                <div class="change-item">
+                                    <strong>{{ key }}:</strong> {{ value }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <p class="user-info">By: {{ entry.user|default:"System" }}</p>
                 </div>
             </div>
         {% endfor %}

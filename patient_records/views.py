@@ -759,3 +759,13 @@ def medications_api(request, patient_id):
         'html': render_to_string('patient_records/partials/_medications.html', context),
         'success': True
     })
+
+def patient_history(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+    # Get all audit trails for this patient, ordered by most recent
+    audit_trails = AuditTrail.objects.filter(patient=patient).order_by('-timestamp')
+    
+    return render(request, 'patient_records/patient_history.html', {
+        'patient': patient,
+        'audit_trails': audit_trails
+    })
