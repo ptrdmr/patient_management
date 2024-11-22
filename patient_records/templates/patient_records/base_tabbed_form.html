@@ -1,0 +1,58 @@
+{% extends 'patient_records/base.html' %}
+
+{% block content %}
+{% include 'components/_breadcrumbs.html' %}
+
+{% if patient %}
+    {% include 'components/_patient_header.html' %}
+{% endif %}
+
+<h1>{% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}</h1>
+
+<div class="tab-container">
+    <div class="tab-nav">
+        {% block tab_buttons %}{% endblock %}
+    </div>
+
+    <div class="tab-contents">
+        {% block tab_contents %}{% endblock %}
+    </div>
+</div>
+
+{% block form_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // Initialize - ensure first tab is active
+        if (tabButtons.length > 0 && !document.querySelector('.tab-button.active')) {
+            tabButtons[0].classList.add('active');
+            const firstTabId = tabButtons[0].dataset.tab;
+            document.getElementById(`${firstTabId}-tab`).classList.add('active');
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and contents
+                tabButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.remove('tab');
+                    btn.classList.add('tab');
+                });
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                // Add active class to clicked button and corresponding content
+                button.classList.add('active');
+                const tabId = button.dataset.tab;
+                const tabContent = document.getElementById(`${tabId}-tab`);
+                if (tabContent) {
+                    tabContent.classList.add('active');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
+
+{% endblock %} 

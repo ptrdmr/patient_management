@@ -1,0 +1,81 @@
+<div class="labs-data">
+    <div class="section-header">
+        <h3>Laboratory Results</h3>
+        <div class="action-buttons">
+            <a href="{% url 'add_labs' patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add Lab Results
+            </a>
+        </div>
+    </div>
+
+    <!-- CMP Labs Section -->
+    <div class="lab-section" data-type="cmp">
+        <h4 class="lab-type-header">Comprehensive Metabolic Panel (CMP)</h4>
+        <div class="pagination-info">
+            Showing records {{ cmp_labs.start_index }} - {{ cmp_labs.end_index }} 
+            of {{ cmp_labs.paginator.count }} total records
+        </div>
+
+        {% if cmp_labs %}
+            {% for lab in cmp_labs %}
+                <div class="data-card collapsible">
+                    <div class="card-header">
+                        <div class="header-content">
+                            <span class="date">{{ lab.date|date }}</span>
+                        </div>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="card-content">
+                        <p>Sodium: {{ lab.sodium }}</p>
+                        <p>Potassium: {{ lab.potassium }}</p>
+                        <p>Chloride: {{ lab.chloride }}</p>
+                        <p>CO2: {{ lab.co2 }}</p>
+                        <p>Glucose: {{ lab.glucose }}</p>
+                        <p>BUN: {{ lab.bun }}</p>
+                        <p>Creatinine: {{ lab.creatinine }}</p>
+                        <p>Calcium: {{ lab.calcium }}</p>
+                        <p>Protein: {{ lab.protein }}</p>
+                        <p>Albumin: {{ lab.albumin }}</p>
+                        <p>Bilirubin: {{ lab.bilirubin }}</p>
+                        <p>GFR: {{ lab.gfr }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+            {% include 'components/_pagination.html' with page_obj=cmp_labs param_prefix="cmp" %}
+        {% else %}
+            <p>No CMP results recorded</p>
+        {% endif %}
+    </div>
+
+    <!-- CBC Labs Section -->
+    <div class="lab-section" data-type="cbc">
+        <h4 class="lab-type-header">Complete Blood Count (CBC)</h4>
+        <div class="pagination-info">
+            Showing records {{ cbc_labs.start_index }} - {{ cbc_labs.end_index }} 
+            of {{ cbc_labs.paginator.count }} total records
+        </div>
+
+        {% if cbc_labs %}
+            {% for lab in cbc_labs %}
+                <div class="data-card collapsible">
+                    <div class="card-header">
+                        <div class="header-content">
+                            <span class="date">{{ lab.date|date }}</span>
+                        </div>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="card-content">
+                        <p>WBC: {{ lab.wbc }}</p>
+                        <p>RBC: {{ lab.rbc }}</p>
+                        <p>Hemoglobin: {{ lab.hemoglobin }}</p>
+                        <p>Hematocrit: {{ lab.hematocrit }}</p>
+                        <p>Platelets: {{ lab.platelets }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+            {% include 'components/_pagination.html' with page_obj=cbc_labs param_prefix="cbc" %}
+        {% else %}
+            <p>No CBC results recorded</p>
+        {% endif %}
+    </div>
+</div> 

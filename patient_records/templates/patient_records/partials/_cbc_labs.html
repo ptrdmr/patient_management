@@ -1,0 +1,40 @@
+<div class="labs-data">
+    <div class="section-header">
+        <h3>Complete Blood Count (CBC)</h3>
+        <div class="action-buttons">
+            <a href="{% url 'add_labs' patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add CBC Results
+            </a>
+        </div>
+    </div>
+
+    <div class="lab-section" data-type="cbc">
+        <div class="pagination-info">
+            Showing records {{ labs.start_index }} - {{ labs.end_index }} 
+            of {{ labs.paginator.count }} total records
+        </div>
+
+        {% if labs %}
+            {% for lab in labs %}
+                <div class="data-card collapsible">
+                    <div class="card-header">
+                        <div class="header-content">
+                            <span class="date">{{ lab.date|date }}</span>
+                        </div>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="card-content">
+                        <p>WBC: {{ lab.wbc }}</p>
+                        <p>RBC: {{ lab.rbc }}</p>
+                        <p>Hemoglobin: {{ lab.hemoglobin }}</p>
+                        <p>Hematocrit: {{ lab.hematocrit }}</p>
+                        <p>Platelets: {{ lab.platelets }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+            {% include 'components/_pagination.html' with page_obj=labs %}
+        {% else %}
+            <p>No CBC results recorded</p>
+        {% endif %}
+    </div>
+</div> 

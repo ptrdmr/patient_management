@@ -1,0 +1,211 @@
+
+patient_demographics [icon: user, color: lightblue] {
+  id string pk
+  date date
+  allergies string
+  code_status string
+  poa_name string
+  relationship string
+  poa_contact string
+  veteran boolean
+  veteran_spouse boolean
+  marital_status string
+  street_address string
+  city string
+  state string
+  zip string
+  patient_phone string
+  patient_email string
+}
+
+diagnosis [icon: activity, color: red] {
+  id string pk
+  patient_id string fk
+  date date
+  diagnosis string
+  icd_code string
+  source string
+}
+
+visits [icon: calendar, color: green] {
+  id string pk
+  patient_id string fk
+  date date
+  visit_type string
+  provider string fk
+  practice string
+  notes string
+  source string
+}
+
+vitals [icon: heart, color: orange] {
+  id string pk
+  patient_id string fk
+  date date
+  blood_pressure string
+  temperature float
+  spo2 float
+  pulse int
+  respirations int
+  supp_o2 boolean
+  pain int
+  source string
+}
+
+cmp_labs [icon: flask, color: purple] {
+  id string pk
+  patient_id string fk
+  date date
+  bun float
+  globulin float
+  ag_ratio float
+  alk_phos float
+  ast float
+  alt float
+  sodium float
+  calcium float
+  protein float
+  albumin float
+  bilirubin float
+  gfr float
+  potassium float
+  chloride float
+  co2 float
+  glucose float
+  creatinine float
+}
+
+cbc_labs [icon: droplet, color: pink] {
+  id string pk
+  patient_id string fk
+  date date
+  rbc float
+  wbc float
+  hemoglobin float
+  hematocrit float
+  mcv float
+  mchc float
+  rdw float
+  platelets int
+  mch float
+  erythrocyte_mcv float
+  neutrophils float
+  lymphocytes float
+  monocytes float
+  eosinophils float
+  basophils float
+}
+
+symptoms [icon: alert-triangle, color: yellow] {
+  id string pk
+  patient_id string fk
+  date date
+  symptom string
+  notes string
+  source string
+  person_reporting string
+}
+
+medications [icon: pill, color: teal] {
+  id string pk
+  patient_id string fk
+  date date
+  drug string
+  dose string
+  route string
+  frequency string
+  prn boolean
+  dc_date date
+  notes string
+}
+
+measurements [icon: ruler, color: brown] {
+  id string pk
+  patient_id string fk
+  date date
+  weight float
+  source string
+  nutritional_intake string
+  mac string
+  fast string
+  pps string
+  plof string
+}
+
+imaging [icon: image, color: cyan] {
+  id string pk
+  patient_id string fk
+  date date
+  type string
+  notes string
+  source string
+}
+
+adls [icon: activity, color: olive] {
+  id string pk
+  patient_id string fk
+  date date
+  ambulation string
+  continence string
+  transfer string
+  dressing string
+  feeding string
+  bathing string
+  notes string
+  source string
+}
+
+occurrences [icon: bell, color: magenta] {
+  id string pk
+  patient_id string fk
+  date date
+  occurrence_type string
+  description string
+  notes string
+  source string
+}
+
+provider [icon: user-check, color: navy] {
+  id string pk
+  date date
+  provider string
+  practice string
+  address string
+  city string
+  state string
+  zip string
+  fax string
+  phone string
+  source string
+}
+
+record_request_log [icon: file-text, color: gray] {
+  id string pk
+  patient_id string fk
+  date date
+  document_name string
+  requested_from string
+  requested_via string
+  received_on date
+  processed_date date
+  processed_by string
+  status string
+}
+
+// End of tables
+title Patient Management System ERD
+
+patient_demographics.id > diagnosis.patient_id
+patient_demographics.id > visits.patient_id
+patient_demographics.id > vitals.patient_id
+patient_demographics.id > cmp_labs.patient_id
+patient_demographics.id > cbc_labs.patient_id
+patient_demographics.id > symptoms.patient_id
+patient_demographics.id > medications.patient_id
+patient_demographics.id > measurements.patient_id
+patient_demographics.id > imaging.patient_id
+patient_demographics.id > adls.patient_id
+patient_demographics.id > occurrences.patient_id
+patient_demographics.id > record_request_log.patient_id
+visits.provider > provider.id
+

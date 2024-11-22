@@ -1,0 +1,9 @@
+<form method="get" action="{{ request.path }}"></form>
+    <input type="text" name="search" placeholder="Search by ID or POA name" value="{{ request.GET.search }}">
+    <select name="sort">
+        <option value="date" {% if request.GET.sort == 'date' %}selected{% endif %}>Date</option>
+        <option value="id" {% if request.GET.sort == 'id' %}selected{% endif %}>ID</option>
+        <option value="poa_name" {% if request.GET.sort == 'poa_name' %}selected{% endif %}>POA Name</option>
+    </select>
+    <button type="submit">Search</button>
+</form>

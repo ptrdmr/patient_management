@@ -1,0 +1,16 @@
+{% extends 'patient_records/base.html' %}
+{% load static %}
+
+{% block title %}Home - Patient Management System{% endblock %}
+
+{% block content %}
+<h1>Welcome to Patient Management System</h1>
+<div class="quick-links">
+    <h2>Quick Links</h2>
+    <ul>
+        <li><a href="{% url 'add_patient' %}">Add New Patient</a></li>
+        <li><a href="{% url 'patient_list' %}">View All Patients</a></li>
+        <li><a href="{% url 'add_provider' %}">Add New Provider</a></li>
+    </ul>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+<div class="medications-data">
+    <div class="section-header">
+        <h2>Current Medications</h2>
+        <div class="action-buttons">
+            <a href="{% url 'add_medications' patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add Medication
+            </a>
+        </div>
+    </div>
+
+    <div class="pagination-info">
+        Showing records {{ medications.start_index }} - {{ medications.end_index }} 
+        of {{ medications.paginator.count }} total records
+    </div>
+
+    {% if medications %}
+        {% for medication in medications %}
+            <div class="record-item" id="record-{{ medication.id }}" data-record-type="medications">
+                <div class="record-content">
+                    <div class="data-card collapsible">
+                        <div class="card-header">
+                            <div class="header-content">
+                                <span class="date">{{ medication.date_prescribed|date }}</span>
+                                <span>{{ medication.drug }}</span>
+                            </div>
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <div class="card-content">
+                            <p><strong>Dosage:</strong> {{ medication.dose }}</p>
+                            <p><strong>Frequency:</strong> {{ medication.frequency }}</p>
+                            <p><strong>Route:</strong> {{ medication.route }}</p>
+                            {% if medication.notes %}
+                                <p><strong>Notes:</strong> {{ medication.notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        
+        {% include 'components/_pagination.html' with page_obj=medications %}
+    {% else %}
+        <p class="no-data">No medications recorded</p>
+    {% endif %}
+</div>

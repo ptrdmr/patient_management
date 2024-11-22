@@ -1,0 +1,16 @@
+<div class="info-item">
+    <label>Name:</label>
+    <span>{{ patient.first_name }} {{ patient.middle_name }} {{ patient.last_name }}</span>
+</div>
+<div class="info-item">
+    <label>Date of Birth:</label>
+    <span>{{ patient.date_of_birth|date:"M d, Y" }}</span>
+</div>
+<div class="info-item">
+    <label>Gender:</label>
+    <span>{{ patient.get_gender_display }}</span>
+</div>
+<div class="info-item">
+    <label>SSN:</label>
+    <span>{{ patient.ssn }}</span>
+</div> 

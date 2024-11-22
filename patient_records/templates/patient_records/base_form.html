@@ -1,0 +1,214 @@
+{% extends 'patient_records/base.html' %}
+
+{% block content %}
+{% include 'components/_breadcrumbs.html' %}
+
+{% if patient %}
+    {% include 'components/_patient_header.html' %}
+{% endif %}
+
+<h1>{% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}</h1>
+
+<form method="post" id="ajax-form" class="form" novalidate>
+    {% csrf_token %}
+    
+    {% block form_errors %}
+        <div class="form-errors" style="display: none;">
+            <div class="alert alert-danger">
+                <ul class="error-list"></ul>
+            </div>
+        </div>
+    {% endblock %}
+    
+    {% block form_content %}
+        {% if forms %}
+            {% for form in forms %}
+                <div class="multi-form-section">
+                    <h3>{{ form.title|default:"Form Section" }}</h3>
+                    {% for field in form %}
+                        {% include "patient_records/partials/_form_field.html" %}
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        {% elif form.sections %}
+            {% for section in form.sections %}
+                {% include "patient_records/partials/_form_section.html" %}
+            {% endfor %}
+        {% else %}
+            {% for field in form %}
+                {% include "patient_records/partials/_form_field.html" %}
+            {% endfor %}
+        {% endif %}
+    {% endblock %}
+    
+    <div class="form-actions">
+        <button type="submit" class="btn primary">{{ submit_label|default:"Save" }}</button>
+        <a href="{{ cancel_url|default:'javascript:history.back()' }}" class="btn secondary">Cancel</a>
+    </div>
+</form>
+
+{% block extra_js %}
+    {{ block.super }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('ajax-form');
+            const errorDiv = form.querySelector('.form-errors');
+            const errorList = errorDiv.querySelector('.error-list');
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            // Keep existing validation code
+            form.querySelectorAll('input, select, textarea').forEach(field => {
+                const wrapper = field.closest('.field-wrapper');
+                if (!wrapper.querySelector('.field-error')) {
+                    wrapper.insertAdjacentHTML('beforeend', '<div class="field-error"></div>');
+                }
+            });
+
+            // Keep existing blur validation
+            form.addEventListener('blur', function(e) {
+                if (e.target.matches('input, select, textarea')) {
+                    validateField(e.target);
+                }
+            }, true);
+
+            // Keep existing input validation
+            form.addEventListener('input', function(e) {
+                if (e.target.matches('input[type="email"], input[type="tel"], input[pattern]')) {
+                    validateField(e.target);
+                }
+            });
+
+            // Add new AJAX submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate all fields before submission
+                let isValid = true;
+                form.querySelectorAll('input, select, textarea').forEach(field => {
+                    if (!validateField(field)) {
+                        isValid = false;
+                    }
+                });
+
+                if (!isValid) {
+                    return;
+                }
+                
+                // Show loading state
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner"></span> Saving...';
+                
+                try {
+                    const formData = new FormData(form);
+                    const response = await fetch(window.location.href, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        // Success
+                        showMessage('success', data.message || 'Saved successfully');
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        }
+                    } else {
+                        // Handle validation errors
+                        handleErrors(data.errors);
+                    }
+                } catch (error) {
+                    showMessage('error', 'An error occurred. Please try again.');
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = '{{ submit_label|default:"Save" }}';
+                }
+            });
+
+            // Keep existing validateField function
+            function validateField(field) {
+                const wrapper = field.closest('.field-wrapper');
+                const errorElement = wrapper.querySelector('.field-error');
+                let isValid = true;
+                let errorMessage = '';
+
+                // Clear previous validation state
+                field.classList.remove('is-invalid', 'is-valid');
+                errorElement.textContent = '';
+
+                // Required field validation
+                if (field.required && !field.value.trim()) {
+                    isValid = false;
+                    errorMessage = 'This field is required';
+                }
+
+                // Pattern validation (including medical patterns)
+                if (field.pattern && field.value) {
+                    const pattern = new RegExp(field.pattern);
+                    if (!pattern.test(field.value)) {
+                        isValid = false;
+                        errorMessage = field.dataset.validationMessage || 'Invalid format';
+                    }
+                }
+
+                // Range validation (including medical ranges)
+                if (field.type === 'number') {
+                    const value = parseFloat(field.value);
+                    if (field.min && value < parseFloat(field.min)) {
+                        isValid = false;
+                        errorMessage = field.dataset.validationMessage || `Value must be at least ${field.min}`;
+                    }
+                    if (field.max && value > parseFloat(field.max)) {
+                        isValid = false;
+                        errorMessage = field.dataset.validationMessage || `Value must be no more than ${field.max}`;
+                    }
+                }
+
+                // Blood pressure specific validation
+                if (field.name === 'blood_pressure' && field.value) {
+                    const [systolic, diastolic] = field.value.split('/').map(Number);
+                    if (systolic <= diastolic) {
+                        isValid = false;
+                        errorMessage = 'Systolic (top) must be greater than diastolic (bottom)';
+                    }
+                }
+
+                // Update UI
+                if (!isValid) {
+                    field.classList.add('is-invalid');
+                    errorElement.textContent = errorMessage;
+                } else {
+                    field.classList.add('is-valid');
+                }
+
+                return isValid;
+            }
+
+            // Add new helper functions
+            function showMessage(type, message) {
+                errorDiv.style.display = 'block';
+                errorDiv.className = `alert alert-${type}`;
+                errorList.innerHTML = `<li>${message}</li>`;
+            }
+
+            function handleErrors(errors) {
+                Object.keys(errors).forEach(fieldName => {
+                    const field = form.querySelector(`[name="${fieldName}"]`);
+                    if (field) {
+                        const wrapper = field.closest('.field-wrapper');
+                        const errorElement = wrapper.querySelector('.field-error');
+                        errorElement.textContent = errors[fieldName][0];
+                        field.classList.add('is-invalid');
+                    }
+                });
+                showMessage('error', 'Please correct the errors below.');
+            }
+        });
+    </script>
+{% endblock %}
+
+
+{% endblock %} 

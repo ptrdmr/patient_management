@@ -1,0 +1,47 @@
+<div class="labs-data">
+    <div class="section-header">
+        <h3>Comprehensive Metabolic Panel (CMP)</h3>
+        <div class="action-buttons">
+            <a href="{% url 'add_labs' patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add CMP Results
+            </a>
+        </div>
+    </div>
+
+    <div class="lab-section" data-type="cmp">
+        <div class="pagination-info">
+            Showing records {{ labs.start_index }} - {{ labs.end_index }} 
+            of {{ labs.paginator.count }} total records
+        </div>
+
+        {% if labs %}
+            {% for lab in labs %}
+                <div class="data-card collapsible">
+                    <div class="card-header">
+                        <div class="header-content">
+                            <span class="date">{{ lab.date|date }}</span>
+                        </div>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="card-content">
+                        <p>Sodium: {{ lab.sodium }}</p>
+                        <p>Potassium: {{ lab.potassium }}</p>
+                        <p>Chloride: {{ lab.chloride }}</p>
+                        <p>CO2: {{ lab.co2 }}</p>
+                        <p>Glucose: {{ lab.glucose }}</p>
+                        <p>BUN: {{ lab.bun }}</p>
+                        <p>Creatinine: {{ lab.creatinine }}</p>
+                        <p>Calcium: {{ lab.calcium }}</p>
+                        <p>Protein: {{ lab.protein }}</p>
+                        <p>Albumin: {{ lab.albumin }}</p>
+                        <p>Bilirubin: {{ lab.bilirubin }}</p>
+                        <p>GFR: {{ lab.gfr }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+            {% include 'components/_pagination.html' with page_obj=labs %}
+        {% else %}
+            <p>No CMP results recorded</p>
+        {% endif %}
+    </div>
+</div> 

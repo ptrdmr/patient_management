@@ -1,0 +1,12 @@
+{% if breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'home' %}">Home</a>
+    {% for breadcrumb in breadcrumbs %}
+        > {% if breadcrumb.url %}
+            <a href="{{ breadcrumb.url }}">{{ breadcrumb.label }}</a>
+        {% else %}
+            {{ breadcrumb.label }}
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}

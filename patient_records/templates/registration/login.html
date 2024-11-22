@@ -1,0 +1,34 @@
+{% extends 'patient_records/base.html' %}
+
+{% block title %}Patient Management System - Login{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h1>Patient Management System</h1>
+    
+    {% if form.errors %}
+    <div class="error-message">
+        Your username and password didn't match. Please try again.
+    </div>
+    {% endif %}
+
+    <form method="post" action="/login/">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" name="username" id="username" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" name="password" id="password" required>
+        </div>
+        
+        <input type="hidden" name="next" value="/home/">
+        
+        <div class="form-actions">
+            <button type="submit">Login</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+<div class="history-data">
+    <div class="section-header">
+        <h3>Patient History</h3>
+    </div>
+
+    {% if has_records %}
+        {% for record in history %}
+            <div class="data-card collapsible">
+                <div class="card-header">
+                    <div class="header-content">
+                        <span class="date">{{ record.timestamp|date:"M d, Y H:i" }}</span>
+                        <span class="action-type">{{ record.action_type }}</span>
+                    </div>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <p><strong>Action:</strong> {{ record.action_type }}</p>
+                    <p><strong>Details:</strong> {{ record.details }}</p>
+                    <p><strong>User:</strong> 
+                        {% if record.user %}
+                            {{ record.user.get_full_name|default:record.user.username }}
+                        {% else %}
+                            System
+                        {% endif %}
+                    </p>
+                    <p><strong>Timestamp:</strong> {{ record.timestamp|date:"M d, Y H:i:s" }}</p>
+                </div>
+            </div>
+        {% endfor %}
+        {% include 'components/_pagination.html' with page_obj=history %}
+    {% else %}
+        <p class="no-records">No history records available for this patient.</p>
+    {% endif %}
+</div> 

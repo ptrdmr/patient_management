@@ -1,0 +1,13 @@
+{% load patient_tags %}
+
+<div class="patient-header">
+    <h2>{{ patient|full_name }}</h2>
+    <p>
+        DOB: {{ patient.date_of_birth|date:"M d, Y" }} |
+        Gender: {{ patient.get_gender_display }}
+        {% if patient.allergies %}| <span class="warning">Allergies: {{ patient.allergies }}</span>{% endif %}
+    </p>
+    {% if patient.code_status %}
+    <p class="code-status">Code Status: {{ patient.code_status }}</p>
+    {% endif %}
+</div>

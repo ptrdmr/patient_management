@@ -1,0 +1,25 @@
+{% extends 'patient_records/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="patient-header">
+    <h1>{{ patient.full_name }}</h1>
+    <p>DOB: {{ patient.date_of_birth|date:"M d, Y" }} | Gender: {{ patient.gender }}</p>
+</div>
+
+<div class="tab-container" data-patient-id="{{ patient.id }}">
+    <div class="tab-nav">
+        <a href="#" class="tab active" data-tab="overview">Overview</a>
+        <a href="#" class="tab" data-tab="clinical">Clinical Data</a>
+        <a href="#" class="tab" data-tab="medications">Medications</a>
+        <a href="#" class="tab" data-tab="cmp_labs">CMP Labs</a>
+        <a href="#" class="tab" data-tab="cbc_labs">CBC Labs</a>
+        <a href="#" class="tab" data-tab="history">History</a>
+    </div>
+    <div class="tab-content">
+        <!-- Content will be loaded here -->
+    </div>
+</div>
+
+
+{% endblock %}

@@ -1,0 +1,21 @@
+.patient-header {
+    background-color: var(--color-light);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border-radius: 5px;
+}
+
+.patient-header h2 {
+    margin-top: 0;
+}
+
+.date {
+    min-width: 120px;
+    display: inline-block;
+}
+
+.pagination-info {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}

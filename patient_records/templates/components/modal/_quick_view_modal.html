@@ -1,0 +1,29 @@
+<div class="quick-view-wrapper">
+    <div class="quick-view-content">
+        {% if content %}
+            {{ content|safe }}
+        {% else %}
+            <p>No content available</p>
+        {% endif %}
+    </div>
+    {% if has_actions %}
+    <div class="quick-view-actions">
+        {% if can_edit and type and item and item.id %}
+        <button 
+            class="btn secondary" 
+            data-action="edit"
+            data-type="{{ type }}"
+            data-id="{{ item.id }}"
+        >Edit</button>
+        {% endif %}
+        {% if can_delete and type and item and item.id %}
+        <button 
+            class="btn danger"
+            data-action="delete"
+            data-type="{{ type }}"
+            data-id="{{ item.id }}"
+        >Delete</button>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>

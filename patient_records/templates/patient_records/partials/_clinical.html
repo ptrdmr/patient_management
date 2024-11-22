@@ -1,0 +1,96 @@
+<div class="clinical-data">
+    <!-- Vitals Section -->
+    <div class="section">
+        <div class="section-header">
+            <h3>Vital Signs</h3>
+            <div class="action-buttons">
+                <button onclick="addItem('vitals')" class="btn primary">
+                    <i class="fas fa-plus"></i> Add Vitals
+                </button>
+            </div>
+        </div>
+        {% if vitals %}
+            {% for vital in vitals %}
+                <div class="data-card collapsible">
+                    <div class="card-header">
+                        <div class="header-content">
+                            <span class="date">{{ vital.date|date }}</span>
+                        </div>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="card-content">
+                        <p>Blood Pressure: {{ vital.blood_pressure }}</p>
+                        <p>Heart Rate: {{ vital.heart_rate }}</p>
+                        <p>Temperature: {{ vital.temperature }}</p>
+                        <p>Respiratory Rate: {{ vital.respiratory_rate }}</p>
+                        <p>O2 Saturation: {{ vital.o2_saturation }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No vital signs recorded</p>
+        {% endif %}
+    </div>
+
+    <!-- Diagnoses Section -->
+    <div class="section">
+        <div class="section-header">
+            <h3>Diagnoses</h3>
+            <div class="action-buttons">
+                <button onclick="addItem('diagnosis')" class="btn primary">
+                    <i class="fas fa-plus"></i> Add Diagnosis
+                </button>
+            </div>
+        </div>
+        {% if diagnoses %}
+            {% for diagnosis in diagnoses %}
+                <div class="data-card collapsible">
+                    <div class="card-header">
+                        <div class="header-content">
+                            <span class="date">{{ diagnosis.date|date }}</span>
+                            <span class="diagnosis-code">{{ diagnosis.icd_code }}</span>
+                        </div>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="card-content">
+                        <p><strong>Diagnosis:</strong> {{ diagnosis.description }}</p>
+                        <p><strong>Notes:</strong> {{ diagnosis.notes|default:"No notes provided" }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No diagnoses recorded</p>
+        {% endif %}
+    </div>
+
+    <!-- Symptoms Section -->
+    <div class="section">
+        <div class="section-header">
+            <h3>Symptoms</h3>
+            <div class="action-buttons">
+                <button onclick="addItem('symptoms')" class="btn primary">
+                    <i class="fas fa-plus"></i> Add Symptoms
+                </button>
+            </div>
+        </div>
+        {% if symptoms %}
+            {% for symptom in symptoms %}
+                <div class="data-card collapsible">
+                    <div class="card-header">
+                        <div class="header-content">
+                            <span class="date">{{ symptom.date|date }}</span>
+                        </div>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="card-content">
+                        <p><strong>Description:</strong> {{ symptom.description }}</p>
+                        <p><strong>Severity:</strong> {{ symptom.severity }}</p>
+                        <p><strong>Duration:</strong> {{ symptom.duration }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No symptoms recorded</p>
+        {% endif %}
+    </div>
+</div> 

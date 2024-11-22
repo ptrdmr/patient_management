@@ -1,0 +1,107 @@
+{% extends 'patient_records/base_tabbed_form.html' %}
+{% load form_tags %}
+
+{% block title %}Add Lab Results{% endblock %}
+
+{% block tab_buttons %}
+    <button type="button" class="tab-button active" data-tab="cmp">CMP Labs</button>
+    <button type="button" class="tab-button" data-tab="cbc">CBC Labs</button>
+{% endblock %}
+
+{% block tab_contents %}
+    <div class="tab-content active" id="cmp-tab">
+        <form method="post" class="lab-form" id="cmp-form">
+            {% csrf_token %}
+            <input type="hidden" name="lab_type" value="cmp">
+            {% if cmp_form.sections %}
+                {% for section in cmp_form.sections %}
+                    <fieldset class="form-section">
+                        <legend>{{ section.title }}</legend>
+                        {% if section.description %}
+                            <p class="section-description">{{ section.description }}</p>
+                        {% endif %}
+                        {% for field_name in section.fields %}
+                            {% with field=cmp_form|get_form_field:field_name %}
+                                <div class="field-wrapper">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                        <div class="help-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="field-error">{{ field.errors|join:", " }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endwith %}
+                        {% endfor %}
+                    </fieldset>
+                {% endfor %}
+            {% else %}
+                {% for field in cmp_form %}
+                    <div class="field-wrapper">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="help-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% if field.errors %}
+                            <div class="field-error">{{ field.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <div class="form-actions">
+                <button type="submit" class="btn primary">Save CMP Results</button>
+                <a href="{{ cancel_url|default:request.META.HTTP_REFERER }}" class="btn secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="tab-content" id="cbc-tab">
+        <form method="post" class="lab-form" id="cbc-form">
+            {% csrf_token %}
+            <input type="hidden" name="lab_type" value="cbc">
+            {% if cbc_form.sections %}
+                {% for section in cbc_form.sections %}
+                    <fieldset class="form-section">
+                        <legend>{{ section.title }}</legend>
+                        {% if section.description %}
+                            <p class="section-description">{{ section.description }}</p>
+                        {% endif %}
+                        {% for field_name in section.fields %}
+                            {% with field=cbc_form|get_form_field:field_name %}
+                                <div class="field-wrapper">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                        <div class="help-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="field-error">{{ field.errors|join:", " }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endwith %}
+                        {% endfor %}
+                    </fieldset>
+                {% endfor %}
+            {% else %}
+                {% for field in cbc_form %}
+                    <div class="field-wrapper">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="help-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% if field.errors %}
+                            <div class="field-error">{{ field.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <div class="form-actions">
+                <button type="submit" class="btn primary">Save CBC Results</button>
+                <a href="{{ cancel_url|default:request.META.HTTP_REFERER }}" class="btn secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}

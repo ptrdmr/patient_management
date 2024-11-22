@@ -1,0 +1,10 @@
+<div class="icd-code-wrapper">
+    <input type="{{ widget.type }}" 
+           name="{{ widget.name }}"
+           class="{{ widget.attrs.class }}"
+           {% if widget.value != None %}value="{{ widget.value|stringformat:'s' }}"{% endif %}
+           {% for name, value in widget.attrs.items %}
+               {% if name != 'class' %}{{ name }}="{{ value }}" {% endif %}
+           {% endfor %}>
+    <div class="autocomplete-results"></div>
+</div> 

@@ -1,0 +1,144 @@
+.data-card {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 0.2rem;
+    max-width: 800px;
+}
+
+.card-header {
+    padding: 0.2rem 1rem;
+    background-color: var(--color-light);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 20px;
+    line-height: 1.2;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-header span, 
+.header-content span {
+    line-height: 1.2;
+    font-size: 0.95rem;
+}
+
+.card-content, 
+.collapsible-content {
+    display: none;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border-color);
+    line-height: 1.4;
+}
+
+.card-content.active,
+.collapsible-content.active {
+    display: block;
+}
+
+.collapse-icon {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Record item styling */
+.record-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.record-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    min-width: 60px;
+    text-align: center;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn.danger {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.clinical-data .data-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+    background: white;
+}
+
+.clinical-data .card-header {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+}
+
+.clinical-data .card-header:hover {
+    background: #f1f5f9;
+}
+
+.clinical-data .header-content {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.clinical-data .icd-code {
+    font-weight: 600;
+    color: #2563eb;
+    min-width: 4rem;
+}
+
+.clinical-data .date {
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.clinical-data .diagnosis-name {
+    font-weight: 500;
+}
+
+.clinical-data .vital-summary {
+    color: #475569;
+}
+
+.clinical-data .card-content {
+    padding: 1rem;
+    border-top: 1px solid #e2e8f0;
+    background: white;
+}
+
+.clinical-data .collapse-icon {
+    color: #64748b;
+    transition: transform 0.2s ease;
+}
+
+.clinical-data .no-data {
+    text-align: center;
+    padding: 1rem;
+    color: #64748b;
+    background: #f8fafc;
+    border-radius: 0.375rem;
+}
