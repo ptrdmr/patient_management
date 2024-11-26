@@ -1,0 +1,21 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="visit-type">{{ record.get_visit_type_display }}</span>
+<span class="provider">{{ record.provider }}</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="visit-details">
+    <p><strong>Practice:</strong> {{ record.practice }}</p>
+    <p><strong>Chief Complaint:</strong> {{ record.chief_complaint|default:"Not provided" }}</p>
+    <p><strong>Assessment:</strong> {{ record.assessment|default:"Not provided" }}</p>
+    <p><strong>Plan:</strong> {{ record.plan|default:"Not provided" }}</p>
+    <p><strong>Follow-up Required:</strong> {{ record.follow_up_required|yesno:"Yes,No" }}</p>
+    {% if record.follow_up_required %}
+    <p><strong>Follow-up Date:</strong> {{ record.follow_up_date|date }}</p>
+    {% endif %}
+    <p><strong>Notes:</strong> {{ record.notes|default:"No notes provided" }}</p>
+    <p><strong>Source:</strong> {{ record.source }}</p>
+</div>
+{% endblock %} 

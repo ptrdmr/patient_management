@@ -1,0 +1,15 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="symptom-type">{{ record.symptom_type }}</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="symptom-details">
+    <p><strong>Symptom:</strong> {{ record.symptom }}</p>
+    <p><strong>Severity:</strong> {{ record.severity|default:"Not assessed" }} / 10</p>
+    <p><strong>Person Reporting:</strong> {{ record.person_reporting }}</p>
+    <p><strong>Notes:</strong> {{ record.notes|default:"No notes provided" }}</p>
+    <p><strong>Source:</strong> {{ record.source }}</p>
+</div>
+{% endblock %} 

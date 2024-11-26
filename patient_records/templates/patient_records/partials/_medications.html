@@ -1,12 +1,5 @@
 <div class="medications-data">
-    <div class="section-header">
-        <h2>Current Medications</h2>
-        <div class="action-buttons">
-            <a href="{% url 'add_medications' patient.id %}" class="btn primary">
-                <i class="fas fa-plus"></i> Add Medication
-            </a>
-        </div>
-    </div>
+    
 
     <div class="pagination-info">
         Showing records {{ medications.start_index }} - {{ medications.end_index }} 

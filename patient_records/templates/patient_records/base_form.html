@@ -7,7 +7,14 @@
     {% include 'components/_patient_header.html' %}
 {% endif %}
 
-<h1>{% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}</h1>
+<div class="form-header">
+    <div class="back-link">
+        <a href="{% url 'patient_detail' patient.id %}" class="btn link">
+            <i class="fas fa-arrow-left"></i> Back to Patient
+        </a>
+    </div>
+    <h1>{% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}</h1>
+</div>
 
 <form method="post" id="ajax-form" class="form" novalidate>
     {% csrf_token %}
@@ -46,6 +53,41 @@
         <a href="{{ cancel_url|default:'javascript:history.back()' }}" class="btn secondary">Cancel</a>
     </div>
 </form>
+
+{% block extra_css %}
+<style>
+    .form-header {
+        margin-bottom: 2rem;
+    }
+
+    .back-link {
+        margin-bottom: 1rem;
+    }
+
+    .back-link a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--color-primary);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .back-link a:hover {
+        color: var(--color-primary-hover);
+    }
+
+    .back-link i {
+        font-size: 0.875rem;
+    }
+
+    h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        color: var(--color-dark);
+    }
+</style>
+{% endblock %}
 
 {% block extra_js %}
     {{ block.super }}
@@ -209,6 +251,5 @@
         });
     </script>
 {% endblock %}
-
 
 {% endblock %} 

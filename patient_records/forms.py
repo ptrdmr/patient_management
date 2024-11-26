@@ -2,6 +2,7 @@ from django import forms
 from .models import *
 import datetime
 from .widgets import ICDCodeWidget, PhoneNumberWidget
+from django.utils import timezone
 
 # Move these base classes to the top of the file
 class BaseForm(forms.ModelForm):
@@ -158,26 +159,42 @@ class DiagnosisForm(forms.ModelForm):
             }
         ]
 
-class VisitsForm(SectionedForm):
+class VisitsForm(BaseForm):
     class Meta:
         model = Visits
-        fields = '__all__'
-        widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'notes': forms.Textarea(attrs={'rows': 4}),
-        }
+        fields = [
+            'date', 'visit_type', 'provider', 'practice',
+            'chief_complaint', 'assessment', 'plan',
+            'notes', 'source'
+        ]
+
+    def clean_date(self):
+        date = self.cleaned_data.get('date')
+        if date and date > timezone.now().date():
+            raise forms.ValidationError('Future dates are not allowed.')
+        return date
 
     def get_sections(self):
         return [
             {
                 'title': 'Visit Information',
                 'description': 'Basic visit details',
-                'fields': ['date', 'provider', 'visit_type']
+                'fields': ['date', 'visit_type', 'provider']
             },
             {
-                'title': 'Visit Details',
-                'description': 'Notes and observations',
-                'fields': ['notes', 'follow_up_needed', 'follow_up_date']
+                'title': 'Clinical Information',
+                'description': 'Clinical assessment and plan',
+                'fields': ['chief_complaint', 'assessment', 'plan']
+            },
+            {
+                'title': 'Location & Details',
+                'description': 'Where the visit took place',
+                'fields': ['practice', 'notes']
+            },
+            {
+                'title': 'Additional Information',
+                'description': 'Source information',
+                'fields': ['source']
             }
         ]
 
@@ -186,23 +203,51 @@ class VitalsForm(SectionedForm):
         model = Vitals
         fields = ['date', 'blood_pressure', 'temperature', 'spo2', 'pulse', 
                  'respirations', 'supp_o2', 'pain', 'source']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'blood_pressure': forms.TextInput(attrs={
+                'placeholder': '120/80',
+                'pattern': r'^\d{2,3}\/\d{2,3}$'
+            }),
+            'spo2': forms.NumberInput(attrs={
+                'min': '0',
+                'max': '100',
+                'step': '1'
+            }),
+            'pain': forms.NumberInput(attrs={
+                'min': '0',
+                'max': '10',
+                'step': '1'
+            })
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['blood_pressure'].help_text = 'Enter as systolic/diastolic (e.g., 120/80)'
+        self.fields['spo2'].help_text = 'Oxygen saturation percentage (0-100)'
+        self.fields['pain'].help_text = 'Pain scale 0-10'
 
     def get_sections(self):
         return [
             {
-                'title': 'Basic Vitals',
-                'description': 'Primary vital signs',
-                'fields': ['date', 'blood_pressure', 'temperature', 'pulse']
+                'title': 'Basic Information',
+                'description': 'Date and source of vital signs',
+                'fields': ['date', 'source']
             },
             {
-                'title': 'Respiratory',
-                'description': 'Breathing and oxygen levels',
-                'fields': ['respirations', 'spo2', 'supp_o2']
+                'title': 'Vital Measurements',
+                'description': 'Core vital sign measurements',
+                'fields': ['blood_pressure', 'temperature', 'pulse', 'respirations']
             },
             {
-                'title': 'Assessment',
-                'description': 'Additional measurements',
-                'fields': ['pain', 'source']
+                'title': 'Oxygenation',
+                'description': 'Oxygen saturation and supplementation',
+                'fields': ['spo2', 'supp_o2']
+            },
+            {
+                'title': 'Additional Assessments',
+                'description': 'Pain and other measurements',
+                'fields': ['pain']
             }
         ]
 
@@ -311,6 +356,34 @@ class MedicationsForm(SectionedForm):
     class Meta:
         model = Medications
         fields = ['date_prescribed', 'drug', 'dose', 'route', 'frequency', 'prn', 'dc_date', 'notes']
+        help_texts = {
+            'dc_date': 'Leave blank if medication is currently active. Only fill this in when discontinuing the medication.',
+            'prn': 'Check this box if the medication is to be taken as needed.',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Override the base form's date field handling
+        self.fields['dc_date'].required = False
+        self.fields['dc_date'].initial = None
+        
+        # Completely override the date input widgets
+        self.fields['date_prescribed'].widget = forms.DateInput(
+            attrs={
+                'type': 'date',
+                'class': 'form-control date-input',
+                'max': datetime.date.today().isoformat()
+            }
+        )
+        self.fields['dc_date'].widget = forms.DateInput(
+            attrs={
+                'type': 'date',
+                'class': 'form-control date-input'
+            }
+        )
+        
+        # Set today's date for date_prescribed
+        self.fields['date_prescribed'].initial = datetime.date.today()
 
     def get_sections(self):
         return [
@@ -360,10 +433,43 @@ class MeasurementsForm(SectionedForm):
             }
         ]
 
+class AdlsForm(SectionedForm):
+    class Meta:
+        model = Adls
+        fields = ['date', 'ambulation', 'continence', 'transfer', 'dressing', 'feeding', 'bathing', 'notes', 'source']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 4}),
+        }
+
+    def get_sections(self):
+        return [
+            {
+                'title': 'Assessment Date',
+                'description': 'When the assessment was performed',
+                'fields': ['date']
+            },
+            {
+                'title': 'Mobility & Movement',
+                'description': 'Movement-related activities',
+                'fields': ['ambulation', 'transfer']
+            },
+            {
+                'title': 'Self-Care Activities',
+                'description': 'Personal care activities',
+                'fields': ['dressing', 'feeding', 'bathing', 'continence']
+            },
+            {
+                'title': 'Additional Information',
+                'description': 'Notes and source',
+                'fields': ['notes', 'source']
+            }
+        ]
+
 class ImagingForm(SectionedForm):
     class Meta:
         model = Imaging
-        fields = '__all__'
+        fields = ['date', 'type', 'notes', 'source']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 4}),
@@ -374,45 +480,17 @@ class ImagingForm(SectionedForm):
             {
                 'title': 'Study Information',
                 'description': 'Basic imaging details',
-                'fields': ['date', 'study_type', 'body_area']
+                'fields': ['date', 'type']
             },
             {
-                'title': 'Results',
-                'description': 'Findings and interpretation',
-                'fields': ['findings', 'impression', 'notes']
-            },
-            {
-                'title': 'Additional Information',
-                'description': 'Source and follow-up',
-                'fields': ['source', 'follow_up_needed']
-            }
-        ]
-
-class AdlsForm(SectionedForm):
-    class Meta:
-        model = Adls
-        fields = '__all__'
-        widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'notes': forms.Textarea(attrs={'rows': 4}),
-        }
-
-    def get_sections(self):
-        return [
-            {
-                'title': 'Basic Information',
-                'description': 'Assessment date and type',
-                'fields': ['date', 'assessment_type']
-            },
-            {
-                'title': 'Daily Living Activities',
-                'description': 'Basic ADL scores',
-                'fields': ['bathing', 'dressing', 'toileting', 'transferring', 'continence', 'feeding']
+                'title': 'Results & Notes',
+                'description': 'Study findings and additional information',
+                'fields': ['notes']
             },
             {
                 'title': 'Additional Information',
-                'description': 'Notes and observations',
-                'fields': ['notes', 'source']
+                'description': 'Source information',
+                'fields': ['source']
             }
         ]
 
@@ -448,29 +526,19 @@ class OccurrencesForm(SectionedForm):
 class RecordRequestLogForm(SectionedForm):
     class Meta:
         model = RecordRequestLog
-        fields = '__all__'
-        widgets = {
-            'date_requested': forms.DateInput(attrs={'type': 'date'}),
-            'date_sent': forms.DateInput(attrs={'type': 'date'}),
-            'notes': forms.Textarea(attrs={'rows': 4}),
-        }
+        fields = ['date', 'request_type', 'purpose', 'records_requested', 'source']
 
     def get_sections(self):
         return [
             {
                 'title': 'Request Information',
                 'description': 'Basic request details',
-                'fields': ['date_requested', 'requestor', 'request_type', 'urgency']
+                'fields': ['date', 'request_type', 'purpose']
             },
             {
-                'title': 'Record Details',
-                'description': 'What records were requested',
-                'fields': ['records_requested', 'date_range_start', 'date_range_end']
-            },
-            {
-                'title': 'Processing Information',
-                'description': 'Status and delivery details',
-                'fields': ['status', 'date_sent', 'delivery_method', 'notes']
+                'title': 'Records Information',
+                'description': 'Details about the requested records',
+                'fields': ['records_requested', 'source']
             }
         ]
 

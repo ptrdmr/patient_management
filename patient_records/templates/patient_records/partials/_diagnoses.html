@@ -1,0 +1,15 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="diagnosis-type">{{ record.diagnosis_type }}</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="diagnosis-details">
+    <p><strong>ICD Code:</strong> {{ record.icd_code }}</p>
+    <p><strong>Diagnosis:</strong> {{ record.diagnosis }}</p>
+    <p><strong>Provider:</strong> {{ record.provider|default:"Not specified" }}</p>
+    <p><strong>Source:</strong> {{ record.source|default:"Not specified" }}</p>
+    <p><strong>Notes:</strong> {{ record.notes|default:"No notes provided" }}</p>
+</div>
+{% endblock %} 

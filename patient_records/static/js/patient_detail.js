@@ -1,4 +1,4 @@
-// Move patientId to global scope
+// Keep patientId in global scope for now
 let patientId;
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -26,20 +26,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (activeTab) {
         console.log('Loading initial tab:', activeTab.dataset.tab);
         loadTabContent(activeTab.dataset.tab);
-    } else {
-        console.warn('No active tab found');
     }
 
     // Add click handlers to tabs
     tabs.forEach(tab => {
         tab.addEventListener('click', (e) => {
             e.preventDefault();
-            
-            // Update active states
             tabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-
-            // Load content for the selected tab
             loadTabContent(tab.dataset.tab);
         });
     });
@@ -59,6 +53,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'cmp_labs':
                 case 'cbc_labs':
                 case 'medications':
+                case 'visits':
+                case 'adls':
+                case 'measurements':
+                case 'imaging':
+                case 'occurrences':
+                case 'record_requests':
                 case 'clinical':
                 case 'overview':
                 case 'history':
@@ -127,24 +127,21 @@ document.addEventListener('DOMContentLoaded', function() {
             link.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const page = link.dataset.page;
-                const prefix = link.dataset.prefix; // Get the pagination prefix (cmp or cbc)
+                const prefix = link.dataset.prefix;
                 const activeTab = tabContainer.querySelector('.tab.active');
                 
                 if (activeTab) {
                     const params = new URLSearchParams(window.location.search);
                     if (prefix) {
-                        // Update only the specific lab type's page
                         params.set(`${prefix}_page`, page);
                     } else {
                         params.set('page', page);
                     }
                     
                     await loadTabContent(activeTab.dataset.tab);
-                    // Update URL without reload
                     const newUrl = `${window.location.pathname}?${params.toString()}`;
                     window.history.pushState({}, '', newUrl);
                     
-                    // Scroll to the specific lab section if it exists
                     if (prefix) {
                         const labSection = document.querySelector(`.lab-section[data-type="${prefix}"]`);
                         if (labSection) {

@@ -100,6 +100,8 @@ class Diagnosis(models.Model):
     icd_code = models.CharField(max_length=10)
     diagnosis = models.CharField(max_length=255)
     date = models.DateField()
+    provider = models.ForeignKey(Provider, on_delete=models.SET_NULL, null=True)
+    source = models.CharField(max_length=100, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -116,6 +118,9 @@ class Visits(models.Model):
     visit_type = models.CharField(max_length=100)
     provider = models.ForeignKey(Provider, on_delete=models.CASCADE)
     practice = models.CharField(max_length=200)
+    chief_complaint = models.TextField(blank=True, null=True)
+    assessment = models.TextField(blank=True, null=True)
+    plan = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True)
     source = models.CharField(max_length=100)
 
@@ -177,11 +182,11 @@ class Symptoms(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     date = models.DateField()
     symptom = models.CharField(max_length=200)
+    severity = models.IntegerField(null=True, blank=True)
     notes = models.TextField(blank=True)
     source = models.CharField(max_length=100)
     person_reporting = models.CharField(max_length=200)
 
-# models.py
 class Medications(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
@@ -209,6 +214,7 @@ class Measurements(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     date = models.DateField()
     weight = models.FloatField()
+    value = models.FloatField(null=True, blank=True)
     source = models.CharField(max_length=100)
     nutritional_intake = models.CharField(max_length=200)
     mac = models.CharField(max_length=100)
@@ -221,6 +227,8 @@ class Imaging(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     date = models.DateField()
     type = models.CharField(max_length=100)
+    body_part = models.CharField(max_length=100, blank=True, null=True)
+    findings = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True)
     source = models.CharField(max_length=100)
 
@@ -231,6 +239,8 @@ class Adls(models.Model):
     ambulation = models.CharField(max_length=100)
     continence = models.CharField(max_length=100)
     transfer = models.CharField(max_length=100)
+    toileting = models.CharField(max_length=100, blank=True, null=True)
+    transferring = models.CharField(max_length=100, blank=True, null=True)
     dressing = models.CharField(max_length=100)
     feeding = models.CharField(max_length=100)
     bathing = models.CharField(max_length=100)
@@ -243,6 +253,7 @@ class Occurrences(models.Model):
     date = models.DateField()
     occurrence_type = models.CharField(max_length=100)
     description = models.TextField()
+    action_taken = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True)
     source = models.CharField(max_length=100)
 
@@ -250,13 +261,10 @@ class RecordRequestLog(models.Model):
     id = models.CharField(max_length=100, primary_key=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     date = models.DateField()
-    document_name = models.CharField(max_length=200)
-    requested_from = models.CharField(max_length=200)
-    requested_via = models.CharField(max_length=100)
-    received_on = models.DateField(null=True, blank=True)
-    processed_date = models.DateField(null=True, blank=True)
-    processed_by = models.CharField(max_length=200)
-    status = models.CharField(max_length=100)
+    request_type = models.CharField(max_length=100, blank=True, null=True)
+    purpose = models.TextField(blank=True, null=True)
+    records_requested = models.TextField(blank=True, null=True)
+    source = models.CharField(max_length=100, blank=True, null=True)
 
 class AuditTrail(models.Model):
     patient = models.ForeignKey('Patient', on_delete=models.SET_NULL, null=True)

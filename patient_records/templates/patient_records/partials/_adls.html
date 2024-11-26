@@ -1,0 +1,20 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="score">Score: {{ record.total_score }}</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="adl-details">
+    <p><strong>Ambulation:</strong> {{ record.ambulation|default:"Not assessed" }}</p>
+    <p><strong>Continence:</strong> {{ record.continence|default:"Not assessed" }}</p>
+    <p><strong>Transfer:</strong> {{ record.transfer|default:"Not assessed" }}</p>
+    <p><strong>Toileting:</strong> {{ record.toileting|default:"Not assessed" }}</p>
+    <p><strong>Transferring:</strong> {{ record.transferring|default:"Not assessed" }}</p>
+    <p><strong>Dressing:</strong> {{ record.dressing|default:"Not assessed" }}</p>
+    <p><strong>Feeding:</strong> {{ record.feeding|default:"Not assessed" }}</p>
+    <p><strong>Bathing:</strong> {{ record.bathing|default:"Not assessed" }}</p>
+    <p><strong>Notes:</strong> {{ record.notes|default:"No notes provided" }}</p>
+    <p><strong>Source:</strong> {{ record.source }}</p>
+</div>
+{% endblock %} 

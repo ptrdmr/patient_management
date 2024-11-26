@@ -1,0 +1,15 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="occurrence-type">{{ record.get_occurrence_type_display }}</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="occurrence-details">
+    <p><strong>Type:</strong> {{ record.occurrence_type }}</p>
+    <p><strong>Description:</strong> {{ record.description }}</p>
+    <p><strong>Action Taken:</strong> {{ record.action_taken|default:"No action recorded" }}</p>
+    <p><strong>Notes:</strong> {{ record.notes|default:"No notes provided" }}</p>
+    <p><strong>Source:</strong> {{ record.source }}</p>
+</div>
+{% endblock %} 

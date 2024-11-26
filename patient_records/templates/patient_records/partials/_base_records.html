@@ -1,0 +1,38 @@
+<div class="records-data">
+    <div class="section-header">
+        <h3>{{ section_title }}</h3>
+        {% if add_url %}
+        <div class="action-buttons">
+            <a href="{% url add_url patient.id %}" class="btn primary">
+                <i class="fas fa-plus"></i> Add {{ section_title }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if records %}
+        <div class="pagination-info">
+            Showing records {{ records.start_index }} - {{ records.end_index }} 
+            of {{ records.paginator.count }} total records
+        </div>
+
+        {% for record in records %}
+            <div class="data-card collapsible">
+                <div class="card-header">
+                    <div class="header-content">
+                        <span class="date">{{ record.date|date }}</span>
+                        {% block record_header_extra %}{% endblock %}
+                    </div>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    {% block record_content %}{% endblock %}
+                </div>
+            </div>
+        {% endfor %}
+
+        {% include 'components/_pagination.html' with page_obj=records %}
+    {% else %}
+        <p class="no-records">No records found.</p>
+    {% endif %}
+</div> 

@@ -3,11 +3,6 @@
     <div class="section">
         <div class="section-header">
             <h3>Vital Signs</h3>
-            <div class="action-buttons">
-                <button onclick="addItem('vitals')" class="btn primary">
-                    <i class="fas fa-plus"></i> Add Vitals
-                </button>
-            </div>
         </div>
         {% if vitals %}
             {% for vital in vitals %}
@@ -36,11 +31,6 @@
     <div class="section">
         <div class="section-header">
             <h3>Diagnoses</h3>
-            <div class="action-buttons">
-                <button onclick="addItem('diagnosis')" class="btn primary">
-                    <i class="fas fa-plus"></i> Add Diagnosis
-                </button>
-            </div>
         </div>
         {% if diagnoses %}
             {% for diagnosis in diagnoses %}
@@ -48,12 +38,12 @@
                     <div class="card-header">
                         <div class="header-content">
                             <span class="date">{{ diagnosis.date|date }}</span>
-                            <span class="diagnosis-code">{{ diagnosis.icd_code }}</span>
                         </div>
                         <span class="collapse-icon">▼</span>
                     </div>
                     <div class="card-content">
-                        <p><strong>Diagnosis:</strong> {{ diagnosis.description }}</p>
+                        <p><strong>Diagnosis:</strong> {{ diagnosis.diagnosis }}</p>
+                        <p><strong>ICD Code:</strong> {{ diagnosis.icd_code }}</p>
                         <p><strong>Notes:</strong> {{ diagnosis.notes|default:"No notes provided" }}</p>
                     </div>
                 </div>
@@ -67,11 +57,6 @@
     <div class="section">
         <div class="section-header">
             <h3>Symptoms</h3>
-            <div class="action-buttons">
-                <button onclick="addItem('symptoms')" class="btn primary">
-                    <i class="fas fa-plus"></i> Add Symptoms
-                </button>
-            </div>
         </div>
         {% if symptoms %}
             {% for symptom in symptoms %}
@@ -79,13 +64,16 @@
                     <div class="card-header">
                         <div class="header-content">
                             <span class="date">{{ symptom.date|date }}</span>
+                            <span class="symptom-name">{{ symptom.symptom }}</span>
                         </div>
                         <span class="collapse-icon">▼</span>
                     </div>
                     <div class="card-content">
-                        <p><strong>Description:</strong> {{ symptom.description }}</p>
-                        <p><strong>Severity:</strong> {{ symptom.severity }}</p>
-                        <p><strong>Duration:</strong> {{ symptom.duration }}</p>
+                        {% if symptom.notes %}
+                            <p><strong>Notes:</strong> {{ symptom.notes }}</p>
+                        {% endif %}
+                        <p><strong>Source:</strong> {{ symptom.source }}</p>
+                        <p><strong>Reported By:</strong> {{ symptom.person_reporting }}</p>
                     </div>
                 </div>
             {% endfor %}

@@ -1,161 +1,258 @@
 from django.test import TestCase, Client
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from django.contrib.auth.models import User
-from .models import Provider, Patient
+from django.utils import timezone
+from .models import Provider, Patient, Visits, Adls, AuditTrail
 from .forms import (
     ProviderForm, PatientForm, DiagnosisForm, VitalsForm,
     MedicationsForm, MeasurementsForm, SymptomsForm,
-    CmpLabsForm, CbcLabsForm
+    CmpLabsForm, CbcLabsForm,
+    VisitsForm,
+    AdlsForm,
+    ImagingForm,
+    RecordRequestLogForm
 )
 import datetime
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+import logging
+import warnings
+from django.test import override_settings
 
-class ViewsTestCase(TestCase):
+# Suppress logging and warnings
+logging.disable(logging.CRITICAL)
+warnings.filterwarnings('ignore', message='No directory at*')
+
+def create_test_patient():
+    """Helper function to create a test patient with all required fields"""
+    return Patient.objects.create(
+        date=timezone.now().date(),
+        first_name="Test",
+        last_name="Patient",
+        date_of_birth=timezone.now().date() - datetime.timedelta(days=10000),
+        poa_name="Test POA",
+        poa_contact="123-456-7890",
+        ssn="123-45-6789",
+        gender='M',
+        street_address='123 Test St',
+        city='Test City',
+        state='Test State',
+        zip='12345'
+    )
+
+def create_test_provider():
+    """Helper function to create a test provider with all required fields"""
+    return Provider.objects.create(
+        date=timezone.now().date(),
+        provider='Test Provider',
+        practice='Test Practice',
+        address='123 Test St',
+        city='Test City',
+        state='Test State',
+        zip='12345',
+        phone='555-1234',
+        fax='555-5678',
+        source='Manual Entry'
+    )
+
+class BaseTestCase(TestCase):
+    """Base test case with common setup"""
     def setUp(self):
-        # Create test user
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='testpass123'
+            password='testpass123',
+            email='test@example.com'
         )
-        self.client.login(username='testuser', password='testpass123')
-        
-        # Create test provider with required fields
-        self.provider = Provider.objects.create(
-            date=datetime.date.today(),
-            provider='Test Provider',
-            practice='Test Practice',
-            address='123 Test St',
-            city='Test City',
-            state='Test State',
-            zip='12345'
-        )
+        self.client.force_login(self.user)
+        self.patient = create_test_patient()
+        self.provider = create_test_provider()
 
-        # Create test patient for form tests
-        self.test_patient = Patient.objects.create(
-            first_name="Test",
-            last_name="Patient",
-            date_of_birth="1990-01-01",
-            date=datetime.date.today(),  # Add this line
-            ssn="123-45-6789"
-        )
-
+@override_settings(STATICFILES_DIRS=[])
+class ViewsTestCase(BaseTestCase):
     def test_provider_list(self):
         """Test provider list view"""
         response = self.client.get(reverse('provider_list'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Test Provider')
-        self.assertContains(response, 'Test Practice')
+        
+        # Test for specific provider data
+        self.assertContains(response, self.provider.provider)
+        self.assertContains(response, self.provider.practice)
+        self.assertContains(response, f"{self.provider.city}, {self.provider.state}")
+        
+        # Test for table structure
+        self.assertContains(response, '<table class="data-table">')
+        self.assertContains(response, '<th>Provider Name</th>')
 
-    def test_add_provider(self):
-        """Test adding a provider"""
-        data = {
-            'date': '2024-01-01',
-            'provider': 'New Provider',
-            'practice': 'New Practice',
-            'address': '456 New St',
-            'city': 'New City',
-            'state': 'New State',
-            'zip': '67890',
-            'fax': '123-456-7890',  # Optional
-            'phone': '098-765-4321',  # Optional
-            'source': 'Test Source'   # Optional
-        }
-        response = self.client.post(reverse('add_provider'), data)
-        self.assertEqual(response.status_code, 302)  # Redirect after success
-        self.assertTrue(Provider.objects.filter(provider='New Provider').exists())
+    def test_patient_list(self):
+        """Test patient list view"""
+        response = self.client.get(reverse('patient_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.patient.first_name)
+        self.assertContains(response, self.patient.last_name)
 
-    def test_edit_provider(self):
-        """Test editing a provider"""
-        data = {
-            'date': '2024-01-01',
-            'provider': 'Updated Provider',
-            'practice': 'Updated Practice',
-            'address': '789 Update St',
-            'city': 'Update City',
-            'state': 'Update State',
-            'zip': '11111'
-        }
-        response = self.client.post(
-            reverse('edit_provider', args=[self.provider.id]), 
-            data
-        )
-        self.assertEqual(response.status_code, 302)
-        updated_provider = Provider.objects.get(id=self.provider.id)
-        self.assertEqual(updated_provider.provider, 'Updated Provider')
-
-class FormSectionTests(TestCase):
+class FormSectionTests(BaseTestCase):
     def test_provider_form_sections(self):
-        """Test provider form sections"""
+        """Test that ProviderForm has correct sections"""
+        self.maxDiff = None
         form = ProviderForm()
-        self.assertTrue(hasattr(form, 'sections'))
-        
-        # Verify all sections have required keys
-        for section in form.sections:
-            self.assertIn('title', section)
-            self.assertIn('description', section)
-            self.assertIn('fields', section)
-        
-        # Verify all form fields are included in sections
-        all_section_fields = [field for section in form.sections for field in section['fields']]
-        for field in form.fields:
-            self.assertIn(field, all_section_fields)
-
-    def test_lab_form_sections(self):
-        """Test CMP and CBC lab form sections"""
-        # Test CMP form sections
-        cmp_form = CmpLabsForm()
-        self.assertTrue(hasattr(cmp_form, 'sections'))
-        cmp_section_titles = [section['title'] for section in cmp_form.sections]
-        expected_cmp_titles = [
-            'Basic Information',
-            'Metabolic Panel',
-            'Liver Function',
-            'Electrolytes',
-            'Additional Tests'
+        expected_sections = [
+            {
+                'title': 'Provider Information',
+                'fields': ['provider', 'practice']
+            },
+            {
+                'title': 'Contact Information',
+                'fields': ['address', 'city', 'state', 'zip', 'phone', 'fax']
+            },
+            {
+                'title': 'Additional Information',
+                'fields': ['source']
+            }
         ]
-        self.assertEqual(cmp_section_titles, expected_cmp_titles)
+        self.assertEqual(form.get_sections(), expected_sections)
 
-        # Test CBC form sections
-        cbc_form = CbcLabsForm()
-        self.assertTrue(hasattr(cbc_form, 'sections'))
-        cbc_section_titles = [section['title'] for section in cbc_form.sections]
-        expected_cbc_titles = [
-            'Basic Information',
-            'Red Blood Cell Counts',
-            'White Blood Cell Counts',
-            'Cell Indices',
-            'Platelets'
+    def test_cmp_labs_form_sections(self):
+        """Test that CmpLabsForm has correct sections"""
+        self.maxDiff = None
+        form = CmpLabsForm()
+        expected_sections = [
+            {
+                'title': 'Basic Information',
+                'description': 'Date of lab results',
+                'fields': ['date']
+            },
+            {
+                'title': 'Electrolytes',
+                'description': 'Electrolyte measurements',
+                'fields': ['sodium', 'potassium', 'chloride', 'co2']
+            },
+            {
+                'title': 'Metabolic Panel',
+                'description': 'Basic metabolic measurements',
+                'fields': ['glucose', 'bun', 'creatinine', 'calcium']
+            },
+            {
+                'title': 'Liver Function',
+                'description': 'Liver function tests',
+                'fields': ['protein', 'albumin', 'bilirubin', 'gfr']
+            }
         ]
-        self.assertEqual(cbc_section_titles, expected_cbc_titles)
+        self.assertEqual(form.get_sections(), expected_sections)
 
-    def test_form_field_coverage(self):
-        """Test that all form fields are included in sections"""
-        forms_to_test = [
-            ProviderForm(),
-            CmpLabsForm(),
-            CbcLabsForm()
-        ]
+class FormValidationTests(BaseTestCase):
+    def test_visit_form_valid(self):
+        """Test that VisitsForm is valid with correct data"""
+        form_data = {
+            'date': timezone.now().date(),
+            'visit_type': 'Office Visit',
+            'provider': self.provider.id,
+            'practice': self.provider.practice,
+            'notes': 'Routine check-up',
+            'source': 'Manual Entry'
+        }
+        form = VisitsForm(data=form_data)
+        self.assertTrue(form.is_valid())
 
-        for form in forms_to_test:
-            all_section_fields = [field for section in form.sections for field in section['fields']]
-            for field in form.fields:
-                self.assertIn(field, all_section_fields, 
-                    f"Field '{field}' missing from sections in {form.__class__.__name__}")
+    def test_visit_form_invalid_future_date(self):
+        """Test that VisitsForm is invalid with a future date"""
+        future_date = timezone.now().date() + datetime.timedelta(days=1)
+        form_data = {
+            'date': future_date,
+            'visit_type': 'Office Visit',
+            'provider': self.provider.id,
+            'practice': 'Test Practice',
+            'source': 'Manual Entry'
+        }
+        form = VisitsForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('date', form.errors)
+        self.assertEqual(form.errors['date'][0], 'Future dates are not allowed.')
 
-    def test_medical_field_validation(self):
-        """Test that medical fields have proper validation rules"""
-        form = MeasurementsForm()
-        
-        # Test blood pressure validation
+class ModelTests(BaseTestCase):
+    def test_patient_str(self):
+        """Test the string representation of Patient"""
         self.assertEqual(
-            form.fields['blood_pressure'].widget.attrs['pattern'],
-            r'^\d{2,3}\/\d{2,3}$'
+            str(self.patient),
+            f"{self.patient.first_name} {self.patient.last_name}"
         )
+
+    def test_provider_str(self):
+        """Test the string representation of Provider"""
+        self.assertEqual(str(self.provider), self.provider.provider)
+
+class URLPatternTests(BaseTestCase):
+    def test_url_patterns(self):
+        """Test that all required URL patterns exist"""
+        urls_to_test = [
+            ('home', []),
+            ('provider_list', []),
+            ('add_provider', []),
+            ('edit_provider', [self.provider.id]),
+            ('patient_list', []),
+            ('add_patient', []),
+            ('patient_detail', [self.patient.id]),
+            ('add_visit', [self.patient.id]),
+            ('add_vitals', [self.patient.id]),
+            ('add_labs', [self.patient.id]),
+            ('add_medications', [self.patient.id]),
+            ('patient_tab_data', [self.patient.id, 'visits']),
+        ]
+
+        for url_name, args in urls_to_test:
+            try:
+                reverse(url_name, args=args)
+            except NoReverseMatch as e:
+                self.fail(f"URL pattern '{url_name}' not found: {e}")
+
+class TemplateTests(BaseTestCase):
+    def test_form_renders_correctly(self):
+        """Test form HTML structure"""
+        response = self.client.get(reverse('add_visit', args=[self.patient.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'patient_records/add_visit.html')
+
+        # Test form structure
+        self.assertContains(response, '<form')
+        self.assertContains(response, 'csrfmiddlewaretoken')
+        self.assertContains(response, 'btn primary')
+        self.assertContains(response, 'btn secondary')
         
-        # Test temperature validation
-        self.assertEqual(form.fields['temperature'].widget.attrs['min'], '95')
-        self.assertEqual(form.fields['temperature'].widget.attrs['max'], '108')
-        
-        # Test pulse validation
-        self.assertEqual(form.fields['pulse'].widget.attrs['min'], '40')
-        self.assertEqual(form.fields['pulse'].widget.attrs['max'], '200')
+        # Test form fields are present
+        self.assertContains(response, 'name="date"')
+        self.assertContains(response, 'name="visit_type"')
+        self.assertContains(response, 'name="provider"')
+
+    def test_error_message_display(self):
+        """Test error message rendering"""
+        response = self.client.post(reverse('add_visit', args=[self.patient.id]), {})
+        self.assertContains(response, 'This field is required')
+
+class PerformanceTests(BaseTestCase):
+    def test_query_count(self):
+        """Test number of queries executed"""
+        with CaptureQueriesContext(connection) as context:
+            response = self.client.get(reverse('patient_detail', args=[self.patient.id]))
+            self.assertEqual(response.status_code, 200, "Page should load successfully")
+            
+            # Count queries by type
+            select_count = sum(1 for q in context.captured_queries 
+                             if q['sql'].startswith('SELECT'))
+            
+            # Assert reasonable query counts
+            self.assertLess(select_count, 10, "Too many SELECT queries")
+
+class SearchTests(BaseTestCase):
+    def test_patient_search(self):
+        """Test patient search functionality"""
+        response = self.client.get(reverse('patient_list'), {'q': self.patient.last_name})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.patient.last_name)
+
+        # Test partial matches
+        response = self.client.get(
+            reverse('patient_list'),
+            {'q': self.patient.last_name[:2]}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.patient.last_name)

@@ -1,0 +1,18 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="measurement-type">{{ record.get_measurement_type_display }}</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="measurement-details">
+    <p><strong>Weight:</strong> {{ record.weight|default:"Not measured" }} lbs</p>
+    <p><strong>Value:</strong> {{ record.value|default:"Not measured" }}</p>
+    <p><strong>Nutritional Intake:</strong> {{ record.nutritional_intake|default:"Not assessed" }}</p>
+    <p><strong>MAC:</strong> {{ record.mac|default:"Not measured" }}</p>
+    <p><strong>FAST:</strong> {{ record.fast|default:"Not assessed" }}</p>
+    <p><strong>PPS:</strong> {{ record.pps|default:"Not assessed" }}</p>
+    <p><strong>PLOF:</strong> {{ record.plof|default:"Not assessed" }}</p>
+    <p><strong>Source:</strong> {{ record.source }}</p>
+</div>
+{% endblock %} 

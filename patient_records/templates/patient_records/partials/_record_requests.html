@@ -1,0 +1,16 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="request-status">{{ record.get_status_display }}</span>
+<span class="requester">{{ record.requester }}</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="request-details">
+    <p><strong>Date:</strong> {{ record.date|date }}</p>
+    <p><strong>Request Type:</strong> {{ record.request_type|default:"Not specified" }}</p>
+    <p><strong>Purpose:</strong> {{ record.purpose|default:"Not specified" }}</p>
+    <p><strong>Records Requested:</strong> {{ record.records_requested|default:"Not specified" }}</p>
+    <p><strong>Source:</strong> {{ record.source|default:"Not specified" }}</p>
+</div>
+{% endblock %} 

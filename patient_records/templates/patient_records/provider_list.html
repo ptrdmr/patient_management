@@ -25,7 +25,7 @@
             <tbody>
                 {% for provider in providers %}
                 <tr id="provider-{{ provider.id }}">
-                    <td>{{ provider.last_name }}, {{ provider.first_name }}</td>
+                    <td>{{ provider.provider }}</td>
                     <td>{{ provider.practice }}</td>
                     <td>{{ provider.city }}, {{ provider.state }}</td>
                     <td>{{ provider.phone|default:"-" }}</td>

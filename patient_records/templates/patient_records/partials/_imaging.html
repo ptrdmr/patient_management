@@ -1,0 +1,16 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="imaging-type">{{ record.get_imaging_type_display }}</span>
+<span class="provider">{{ record.provider }}</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="imaging-details">
+    <p><strong>Type:</strong> {{ record.type }}</p>
+    <p><strong>Body Part:</strong> {{ record.body_part|default:"Not specified" }}</p>
+    <p><strong>Findings:</strong> {{ record.findings|default:"No findings recorded" }}</p>
+    <p><strong>Notes:</strong> {{ record.notes|default:"No notes provided" }}</p>
+    <p><strong>Source:</strong> {{ record.source }}</p>
+</div>
+{% endblock %} 

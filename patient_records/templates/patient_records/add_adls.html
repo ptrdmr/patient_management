@@ -1,0 +1,14 @@
+{% extends 'patient_records/base_form.html' %}
+
+{% block title %}Add Activities of Daily Living{% endblock %}
+
+{% block form_content %}
+    {% for field in form %}
+        {% include "patient_records/partials/_form_field.html" %}
+    {% endfor %}
+{% endblock %}
+
+{% block form_actions %}
+    <button type="submit" class="btn primary">Save ADLs</button>
+    <a href="{% url 'patient_detail' patient.id %}" class="btn secondary">Cancel</a>
+{% endblock %} 

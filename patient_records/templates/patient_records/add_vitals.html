@@ -1,2 +1,15 @@
 {% extends 'patient_records/base_form.html' %}
-{% block title %}Add Vitals{% endblock %}
+
+{% block title %}Record Vital Signs{% endblock %}
+
+{% block form_content %}
+    {% if form.sections %}
+        {% for section in form.sections %}
+            {% include "patient_records/partials/_form_section.html" %}
+        {% endfor %}
+    {% else %}
+        {% for field in form %}
+            {% include "patient_records/partials/_form_field.html" %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

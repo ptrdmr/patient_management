@@ -1,0 +1,19 @@
+{% extends 'patient_records/partials/_base_records.html' %}
+
+{% block record_header_extra %}
+<span class="vital-type">Vital Signs</span>
+{% endblock %}
+
+{% block record_content %}
+<div class="record-details">
+    <p><strong>Blood Pressure:</strong> {{ record.systolic }}/{{ record.diastolic }} mmHg</p>
+    <p><strong>Heart Rate:</strong> {{ record.heart_rate }} bpm</p>
+    <p><strong>Respiratory Rate:</strong> {{ record.respiratory_rate }} breaths/min</p>
+    <p><strong>Temperature:</strong> {{ record.temperature }}°F</p>
+    <p><strong>O2 Saturation:</strong> {{ record.o2_saturation }}%</p>
+    {% if record.notes %}
+    <p><strong>Notes:</strong> {{ record.notes }}</p>
+    {% endif %}
+    <p><strong>Source:</strong> {{ record.source }}</p>
+</div>
+{% endblock %} 

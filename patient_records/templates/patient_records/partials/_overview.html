@@ -56,7 +56,10 @@
         <div class="card-content">
             {% if recent_medications %}
                 {% for med in recent_medications %}
-                    <p>{{ med.drug }} - {{ med.dose }} {{ med.frequency }}</p>
+                    <div class="medication-item">
+                        <p><strong>{{ med.drug }}</strong> - {{ med.dose }} {{ med.route }} {{ med.frequency }}
+                        {% if med.prn %}<span class="prn-tag">(PRN)</span>{% endif %}</p>
+                    </div>
                 {% endfor %}
             {% else %}
                 <p>No current medications</p>

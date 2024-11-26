@@ -183,6 +183,7 @@ class Command(BaseCommand):
                 patient=patient,
                 date=self.fake.date_this_year(),
                 symptom=random.choice(symptoms_list)[:200],
+                severity=random.randint(1, 10),
                 notes=self.fake.text(max_nb_chars=100),
                 source='Patient Report'[:100],
                 person_reporting=random.choice(['Self', 'Family Member', 'Caregiver'])[:200]
@@ -208,6 +209,7 @@ class Command(BaseCommand):
 
     def _create_visits(self, patient):
         visit_types = ['Follow-up', 'New Patient', 'Urgent', 'Routine']
+        complaints = ['Chest Pain', 'Shortness of Breath', 'Abdominal Pain', 'Fever', 'Back Pain']
         for _ in range(random.randint(6, 15)):
             Visits.objects.create(
                 id=str(uuid.uuid4()),
@@ -216,6 +218,9 @@ class Command(BaseCommand):
                 date=self.fake.date_this_year(),
                 visit_type=random.choice(visit_types)[:100],
                 practice=self.fake.company()[:200],
+                chief_complaint=random.choice(complaints),
+                assessment=self.fake.paragraph(nb_sentences=2),
+                plan=self.fake.paragraph(nb_sentences=2),
                 notes=self.fake.text(max_nb_chars=100),
                 source='EMR'[:100]
             )
@@ -237,12 +242,15 @@ class Command(BaseCommand):
 
     def _create_imaging(self, patient):
         imaging_types = ['X-Ray', 'CT', 'MRI', 'Ultrasound']
+        body_parts = ['Chest', 'Abdomen', 'Head', 'Spine', 'Knee', 'Hip', 'Shoulder']
         for _ in range(random.randint(3, 9)):
             Imaging.objects.create(
                 id=str(uuid.uuid4()),
                 patient=patient,
                 date=self.fake.date_this_year(),
                 type=random.choice(imaging_types)[:100],
+                body_part=random.choice(body_parts),
+                findings=self.fake.paragraph(nb_sentences=2),
                 notes=self.fake.text(max_nb_chars=100),
                 source='Radiology'[:100]
             )
@@ -257,6 +265,8 @@ class Command(BaseCommand):
                 ambulation=random.choice(status_choices)[:100],
                 continence=random.choice(status_choices)[:100],
                 transfer=random.choice(status_choices)[:100],
+                toileting=random.choice(status_choices)[:100],
+                transferring=random.choice(status_choices)[:100],
                 dressing=random.choice(status_choices)[:100],
                 feeding=random.choice(status_choices)[:100],
                 bathing=random.choice(status_choices)[:100],
@@ -266,6 +276,13 @@ class Command(BaseCommand):
 
     def _create_occurrences(self, patient):
         occurrence_types = ['Fall', 'Medication Error', 'Skin Breakdown', 'Behavioral Issue']
+        actions = [
+            'Notified physician',
+            'Initiated protocol',
+            'Increased monitoring',
+            'Provided intervention',
+            'Updated care plan'
+        ]
         for _ in range(random.randint(3, 6)):
             Occurrences.objects.create(
                 id=str(uuid.uuid4()),
@@ -273,6 +290,7 @@ class Command(BaseCommand):
                 date=self.fake.date_this_year(),
                 occurrence_type=random.choice(occurrence_types)[:100],
                 description=self.fake.text(max_nb_chars=100),
+                action_taken=random.choice(actions),
                 notes=self.fake.text(max_nb_chars=100),
                 source='Staff Report'[:100]
             )
