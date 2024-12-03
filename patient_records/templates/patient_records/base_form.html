@@ -8,11 +8,13 @@
 {% endif %}
 
 <div class="form-header">
+    {% if patient %}
     <div class="back-link">
         <a href="{% url 'patient_detail' patient.id %}" class="btn link">
             <i class="fas fa-arrow-left"></i> Back to Patient
         </a>
     </div>
+    {% endif %}
     <h1>{% block title %}{{ form_title|default:"Data Entry" }}{% endblock %}</h1>
 </div>
 

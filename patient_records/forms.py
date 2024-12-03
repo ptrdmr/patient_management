@@ -251,84 +251,68 @@ class VitalsForm(SectionedForm):
             }
         ]
 
-class CmpLabsForm(SectionedForm):
-    date = forms.DateField(
-        widget=forms.DateInput(
-            attrs={'type': 'date'},
-            format='%Y-%m-%d'
-        )
-    )
-
+class CMPLabForm(SectionedForm):
     class Meta:
         model = CmpLabs
-        fields = ['date', 'sodium', 'potassium', 'chloride', 'co2', 
-                 'glucose', 'bun', 'creatinine', 'calcium',
-                 'protein', 'albumin', 'bilirubin', 'gfr']
+        fields = [
+            'date', 'sodium', 'potassium', 'chloride', 'co2', 'bun', 
+            'creatinine', 'glucose', 'calcium', 'protein', 'albumin', 
+            'bilirubin', 'gfr'
+        ]
 
     def get_sections(self):
         return [
             {
                 'title': 'Basic Information',
-                'description': 'Date of lab results',
                 'fields': ['date']
             },
             {
                 'title': 'Electrolytes',
-                'description': 'Electrolyte measurements',
                 'fields': ['sodium', 'potassium', 'chloride', 'co2']
             },
             {
+                'title': 'Kidney Function',
+                'fields': ['bun', 'creatinine', 'gfr']
+            },
+            {
                 'title': 'Metabolic Panel',
-                'description': 'Basic metabolic measurements',
-                'fields': ['glucose', 'bun', 'creatinine', 'calcium']
+                'fields': ['glucose', 'calcium', 'protein', 'albumin']
             },
             {
                 'title': 'Liver Function',
-                'description': 'Liver function tests',
-                'fields': ['protein', 'albumin', 'bilirubin', 'gfr']
+                'fields': ['bilirubin']
             }
         ]
 
-class CbcLabsForm(SectionedForm):
-    date = forms.DateField(
-        widget=forms.DateInput(
-            attrs={'type': 'date'},
-            format='%Y-%m-%d'
-        )
-    )
-
+class CBCLabForm(SectionedForm):
     class Meta:
         model = CbcLabs
-        fields = ['date', 'rbc', 'wbc', 'hemoglobin', 'hematocrit', 'mcv', 
-                 'mchc', 'rdw', 'platelets', 'mch', 'neutrophils', 
-                 'lymphocytes', 'monocytes', 'eosinophils', 'basophils']
+        fields = [
+            'date', 'wbc', 'rbc', 'hemoglobin', 'hematocrit', 'mcv', 
+            'mch', 'mchc', 'rdw', 'platelets', 'neutrophils', 
+            'lymphocytes', 'monocytes', 'eosinophils', 'basophils'
+        ]
 
     def get_sections(self):
         return [
             {
                 'title': 'Basic Information',
-                'description': 'Date of lab results',
                 'fields': ['date']
             },
             {
-                'title': 'Red Blood Cell Counts',
-                'description': 'RBC-related measurements',
+                'title': 'Red Blood Cell Panel',
                 'fields': ['rbc', 'hemoglobin', 'hematocrit']
             },
             {
-                'title': 'White Blood Cell Counts',
-                'description': 'WBC-related measurements',
-                'fields': ['wbc', 'neutrophils', 'lymphocytes', 'monocytes', 
-                          'eosinophils', 'basophils']
+                'title': 'Red Blood Cell Indices',
+                'fields': ['mcv', 'mch', 'mchc', 'rdw']
             },
             {
-                'title': 'Cell Indices',
-                'description': 'Blood cell characteristics',
-                'fields': ['mcv', 'mchc', 'rdw', 'mch']
+                'title': 'White Blood Cell Panel',
+                'fields': ['wbc', 'neutrophils', 'lymphocytes', 'monocytes', 'eosinophils', 'basophils']
             },
             {
                 'title': 'Platelets',
-                'description': 'Platelet count',
                 'fields': ['platelets']
             }
         ]
@@ -591,4 +575,77 @@ class PatientForm(SectionedForm):
                 'fields': ['allergies', 'code_status']
             }
         ]
+
+class PatientNoteForm(SectionedForm):
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter tags separated by commas'
+        })
+    )
+
+    class Meta:
+        model = PatientNote
+        fields = ['patient', 'title', 'content', 'category', 'tags', 'is_pinned']
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 5, 'class': 'note-content'}),
+            'patient': forms.HiddenInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['is_pinned'].widget.attrs['class'] = 'form-check-input'
+        self.fields['patient'].required = True
+
+        # Convert tags to comma-separated string if instance exists
+        if self.instance.pk and self.instance.tags.exists():
+            self.initial['tags'] = ', '.join(tag.name for tag in self.instance.tags.all())
+
+    def clean_tags(self):
+        """Convert comma-separated tags string to list of tag names"""
+        tags = self.cleaned_data.get('tags', '')
+        if tags:
+            # Split by comma, strip whitespace, and filter out empty strings
+            return [tag.strip() for tag in tags.split(',') if tag.strip()]
+        return []
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            # Handle tags
+            if 'tags' in self.cleaned_data:
+                instance.tags.clear()
+                for tag_name in self.cleaned_data['tags']:
+                    tag, _ = NoteTag.objects.get_or_create(name=tag_name)
+                    instance.tags.add(tag)
+        return instance
+
+    def get_sections(self):
+        return [
+            {
+                'title': 'Note Details',
+                'description': 'Enter the note details',
+                'fields': ['title', 'category']
+            },
+            {
+                'title': 'Note Content',
+                'description': 'Enter your note',
+                'fields': ['content']
+            },
+            {
+                'title': 'Organization',
+                'description': 'Organize your note',
+                'fields': ['tags', 'is_pinned']
+            }
+        ]
+
+class NoteAttachmentForm(forms.ModelForm):
+    class Meta:
+        model = NoteAttachment
+        fields = ['file']
+        widgets = {
+            'file': forms.FileInput(attrs={'class': 'form-control'})
+        }
 

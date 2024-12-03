@@ -1,0 +1,16 @@
+{% extends 'patient_records/base_form.html' %}
+{% load form_tags %}
+
+{% block title %}Add CMP Lab Results{% endblock %}
+
+{% block form_content %}
+    {% if cmp_form.sections %}
+        {% for section in cmp_form.sections %}
+            {% include "patient_records/partials/_form_section.html" with form=cmp_form section=section %}
+        {% endfor %}
+    {% else %}
+        {% for field in cmp_form %}
+            {% include "patient_records/partials/_form_field.html" with field=field %}
+        {% endfor %}
+    {% endif %}
+{% endblock %} 

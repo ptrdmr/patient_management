@@ -1,30 +1,22 @@
-// Keep patientId in global scope for now
+// Global variables
 let patientId;
 
 document.addEventListener('DOMContentLoaded', function() {
     const tabContainer = document.querySelector('.tab-container');
-    if (!tabContainer) {
-        console.error('Tab container not found');
-        return;
+    if (tabContainer) {
+        patientId = tabContainer.dataset.patientId;
+        initializeTabs();
     }
+});
 
-    patientId = tabContainer.dataset.patientId;
-    if (!patientId) {
-        console.error('Patient ID not found in tab container data');
-        return;
-    }
-
+function initializeTabs() {
+    const tabContainer = document.querySelector('.tab-container');
     const tabs = tabContainer.querySelectorAll('.tab');
     const contentArea = tabContainer.querySelector('.tab-content');
-    if (!contentArea) {
-        console.error('Content area not found');
-        return;
-    }
 
-    // Initialize with the active tab
+    // Load initial active tab
     const activeTab = tabContainer.querySelector('.tab.active');
     if (activeTab) {
-        console.log('Loading initial tab:', activeTab.dataset.tab);
         loadTabContent(activeTab.dataset.tab);
     }
 
@@ -37,156 +29,123 @@ document.addEventListener('DOMContentLoaded', function() {
             loadTabContent(tab.dataset.tab);
         });
     });
+}
 
-    async function loadTabContent(tabName, page = 1) {
-        if (!contentArea) {
-            console.error('Content area not available');
-            return;
+async function loadTabContent(tabName) {
+    const contentArea = document.querySelector('.tab-content');
+    if (!contentArea) return;
+
+    try {
+        const response = await fetch(`/patient/${patientId}/tab/${tabName}/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            contentArea.innerHTML = data.html;
+            initializeCollapsibles();
+            initializePagination();
         }
-
-        try {
-            const params = new URLSearchParams(window.location.search);
-            console.log('Loading tab:', tabName);
-            
-            // Handle pagination for all tab types
-            switch(tabName) {
-                case 'cmp_labs':
-                case 'cbc_labs':
-                case 'medications':
-                case 'visits':
-                case 'adls':
-                case 'measurements':
-                case 'imaging':
-                case 'occurrences':
-                case 'record_requests':
-                case 'clinical':
-                case 'overview':
-                case 'history':
-                    params.set('page', page);
-                    break;
-                default:
-                    console.warn('Unknown tab type:', tabName);
-                    break;
-            }
-
-            const url = `/patient/${patientId}/tab/${tabName}/?${params.toString()}`;
-            console.log('Fetching:', url);
-
-            const response = await fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('Response data:', data);
-
-            if (data.success) {
-                contentArea.innerHTML = data.html;
-                console.log('Content updated');
-                initializeCollapsibles();
-                initializePagination();
-                console.log('Components initialized');
-            } else {
-                throw new Error(data.error || 'Unknown error occurred');
-            }
-            
-        } catch (error) {
-            console.error('Error loading tab content:', error);
-            contentArea.innerHTML = '<p class="error-message">Error loading content. Please try again.</p>';
-        }
+    } catch (error) {
+        console.error('Error loading tab content:', error);
+        contentArea.innerHTML = '<p class="error-message">Error loading content. Please try again.</p>';
     }
+}
 
-    function initializeCollapsibles() {
-        const cards = document.querySelectorAll('.collapsible');
-        if (!cards.length) return;
+function addRecord(type) {
+    const url = `/patient/${patientId}/${type}/add/`;
+    showFormModal(url, `Add ${type}`);
+}
 
-        cards.forEach(card => {
-            const header = card.querySelector('.card-header');
-            const content = card.querySelector('.card-content, .collapsible-content');
-            const icon = header?.querySelector('.collapse-icon');
+function editRecord(type, id) {
+    const url = `/patient/${patientId}/${type}/${id}/edit/`;
+    showFormModal(url, `Edit ${type}`);
+}
+
+function showFormModal(url, title) {
+    const modal = new bootstrap.Modal(document.getElementById('recordModal'), {
+        backdrop: true,
+        keyboard: true
+    });
+    const modalTitle = document.querySelector('#recordModal .modal-title');
+    const modalBody = document.querySelector('#recordModal .modal-body');
+
+    modalTitle.textContent = title;
+    
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            modalBody.innerHTML = html;
             
-            if (header && content) {
-                header.addEventListener('click', () => {
-                    content.classList.toggle('active');
-                    if (icon) {
-                        icon.style.transform = content.classList.contains('active') ? 'rotate(180deg)' : 'rotate(0deg)';
+            const form = modalBody.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            modal.hide();
+                            const activeTab = document.querySelector('.tab.active');
+                            if (activeTab) {
+                                loadTabContent(activeTab.dataset.tab);
+                            } else {
+                                window.location.reload();
+                            }
+                        } else {
+                            const errorDiv = modalBody.querySelector('.error-message') || document.createElement('div');
+                            errorDiv.className = 'alert alert-danger error-message';
+                            errorDiv.textContent = data.error || 'An error occurred. Please try again.';
+                            form.prepend(errorDiv);
+                        }
+                    } catch (error) {
+                        console.error('Error submitting form:', error);
                     }
                 });
             }
+            
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error loading form:', error);
         });
-    }
-
-    function initializePagination() {
-        const paginationLinks = document.querySelectorAll('.page-link');
-        paginationLinks.forEach(link => {
-            link.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const page = link.dataset.page;
-                const prefix = link.dataset.prefix;
-                const activeTab = tabContainer.querySelector('.tab.active');
-                
-                if (activeTab) {
-                    const params = new URLSearchParams(window.location.search);
-                    if (prefix) {
-                        params.set(`${prefix}_page`, page);
-                    } else {
-                        params.set('page', page);
-                    }
-                    
-                    await loadTabContent(activeTab.dataset.tab);
-                    const newUrl = `${window.location.pathname}?${params.toString()}`;
-                    window.history.pushState({}, '', newUrl);
-                    
-                    if (prefix) {
-                        const labSection = document.querySelector(`.lab-section[data-type="${prefix}"]`);
-                        if (labSection) {
-                            labSection.scrollIntoView({ behavior: 'smooth' });
-                        }
-                    }
-                }
+}
+function initializeCollapsibles() {
+    const cards = document.querySelectorAll('.collapsible');
+    cards.forEach(card => {
+        const header = card.querySelector('.card-header');
+        const content = card.querySelector('.card-content');
+        if (header && content) {
+            header.addEventListener('click', () => {
+                content.classList.toggle('active');
             });
-        });
-    }
-});
-
-// These functions can now access patientId
-function addItem(type) {
-    if (!window.formModal) {
-        console.error('FormModal not initialized!');
-        return;
-    }
-    
-    window.formModal.show(`/patient/${patientId}/${type}/add/`, {
-        title: `Add ${type}`,
-        onSuccess: (data) => {
-            if (typeof loadTabContent === 'function') {
-                loadTabContent(type);
-            } else {
-                window.location.reload();
-            }
         }
     });
 }
 
-function editItem(type, id) {
-    if (!window.formModal) {
-        console.error('FormModal not initialized!');
-        return;
-    }
-    
-    window.formModal.show(`/patient/${patientId}/${type}/${id}/edit/`, {
-        title: `Edit ${type}`,
-        onSuccess: (data) => {
-            if (typeof loadTabContent === 'function') {
-                loadTabContent(type);
-            } else {
-                window.location.reload();
+function initializePagination() {
+    const paginationLinks = document.querySelectorAll('.pagination .page-link');
+    paginationLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const page = link.dataset.page;
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab) {
+                loadTabContent(activeTab.dataset.tab, page);
             }
-        }
+        });
     });
 }

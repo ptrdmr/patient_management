@@ -1,0 +1,78 @@
+<div class="modal fade" id="notesModal" tabindex="-1" aria-labelledby="notesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notesModalLabel">
+                    <i class="fas fa-sticky-note me-2"></i>Patient Notes
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="notes-container">
+                    <div class="row">
+                        <!-- Notes List -->
+                        <div class="col-md-4 notes-list">
+                            <div class="notes-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <button class="btn btn-primary" id="newNoteBtn">
+                                        <i class="fas fa-plus me-1"></i> New Note
+                                    </button>
+                                    <span class="badge bg-secondary">{{ notes|length }} Notes</span>
+                                </div>
+                                <div class="notes-filter mt-3">
+                                    <select class="form-select" id="notesCategoryFilter">
+                                        <option value="">All Categories</option>
+                                        {% for category, label in note_categories %}
+                                            <option value="{{ category }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="notes-list-content">
+                                {% if notes %}
+                                    {% include 'patient_records/partials/_notes_list.html' %}
+                                {% else %}
+                                    <div class="empty-state">
+                                        <i class="fas fa-sticky-note"></i>
+                                        <p>No notes found</p>
+                                        <button class="btn btn-primary btn-sm mt-3" id="emptyStateNewNote">
+                                            <i class="fas fa-plus me-1"></i> Create First Note
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Note Content -->
+                        <div class="col-md-8 note-content">
+                            <div id="noteDetail">
+                                <div class="empty-state">
+                                    <i class="fas fa-file-alt"></i>
+                                    <p>Select a note to view its contents</p>
+                                    <p class="text-muted">Or create a new note to get started</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Note Form Modal -->
+<div class="modal fade" id="noteFormModal" tabindex="-1" aria-labelledby="noteFormModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="noteFormModalLabel">
+                    <i class="fas fa-edit me-2"></i><span>Add Note</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Note form will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div> 

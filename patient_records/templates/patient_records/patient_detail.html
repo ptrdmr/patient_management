@@ -1,200 +1,57 @@
 {% extends 'patient_records/base.html' %}
-{% load patient_tags %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared/notes-modal.css' %}">
+{% endblock %}
 
 {% block content %}
-{% include 'components/_breadcrumbs.html' %}
-
-<div class="patient-header">
-    <h1>{{ patient.first_name }} {{ patient.last_name }}</h1>
-    <div class="patient-info">
-        <span>DOB: {{ patient.date_of_birth|date:"M d, Y" }}</span>
-        <span>Gender: {{ patient.get_gender_display }}</span>
+<div class="content-header">
+    <div class="header-info">
+        <h1>{{ patient.first_name }} {{ patient.last_name }}</h1>
+        <div class="patient-meta">
+            <span>DOB: {{ patient.date_of_birth|date:"M d, Y" }}</span>
+            <span>Gender: {{ patient.get_gender_display }}</span>
+        </div>
     </div>
-</div>
-
-<div class="action-menu">
-    <div class="dropdown">
-        <button class="btn primary dropdown-toggle">
-            <i class="fas fa-plus"></i> Add Record
-            <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="dropdown-menu">
-            <div class="dropdown-section">
-                <h3>Clinical Records</h3>
-                <a href="{% url 'add_visit' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-stethoscope"></i> Add Visit
-                </a>
-                <a href="{% url 'add_diagnosis' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-file-medical"></i> Add Diagnosis
-                </a>
-                <a href="{% url 'add_adls' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-tasks"></i> Add ADLs
-                </a>
-            </div>
-            
-            <div class="dropdown-section">
-                <h3>Measurements & Labs</h3>
-                <a href="{% url 'add_vitals' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-heartbeat"></i> Add Vitals
-                </a>
-                <a href="{% url 'add_labs' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-flask"></i> Add Labs
-                </a>
-                <a href="{% url 'add_measurements' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-ruler"></i> Add Measurements
-                </a>
-            </div>
-
-            <div class="dropdown-section">
-                <h3>Medications & Symptoms</h3>
-                <a href="{% url 'add_medications' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-pills"></i> Add Medication
-                </a>
-                <a href="{% url 'add_symptoms' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-notes-medical"></i> Add Symptoms
-                </a>
-            </div>
-
-            <div class="dropdown-section">
-                <h3>Other Records</h3>
-                <a href="{% url 'add_imaging' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-x-ray"></i> Add Imaging
-                </a>
-                <a href="{% url 'add_occurrence' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-exclamation-circle"></i> Add Occurrence
-                </a>
-                <a href="{% url 'add_record_request' patient.id %}" class="dropdown-item">
-                    <i class="fas fa-file-alt"></i> Add Record Request
-                </a>
-            </div>
+    <div class="header-actions">
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" id="addRecordDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-plus"></i> Add Record
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="addRecordDropdown">
+                <li><a class="dropdown-item" href="{% url 'add_visit' patient.id %}"><i class="fas fa-calendar-check"></i> Add Visit</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_adls' patient.id %}"><i class="fas fa-tasks"></i> Add ADL</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_diagnosis' patient.id %}"><i class="fas fa-stethoscope"></i> Add Diagnosis</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_measurements' patient.id %}"><i class="fas fa-weight"></i> Add Measurement</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_medications' patient.id %}"><i class="fas fa-pills"></i> Add Medication</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_symptoms' patient.id %}"><i class="fas fa-thermometer-half"></i> Add Symptom</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_imaging' patient.id %}"><i class="fas fa-x-ray"></i> Add Imaging</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_cmp_labs' patient.id %}"><i class="fas fa-flask"></i> Add CMP Labs</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_cbc_labs' patient.id %}"><i class="fas fa-vial"></i> Add CBC Labs</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_occurrence' patient.id %}"><i class="fas fa-exclamation-circle"></i> Add Occurrence</a></li>
+                <li><a class="dropdown-item" href="{% url 'add_record_request' patient.id %}"><i class="fas fa-file-medical"></i> Add Record Request</a></li>
+            </ul>
         </div>
     </div>
 </div>
 
-<div class="tab-container" data-patient-id="{{ patient.id }}">
-    <div class="tab-nav">
-        <!-- Overview and Summary -->
-        <a href="#" class="tab active" data-tab="overview">Overview</a>
-        
-        <!-- Patient Records -->
-        <a href="#" class="tab" data-tab="visits">Visits</a>
-        <a href="#" class="tab" data-tab="adls">ADLs</a>
-        <a href="#" class="tab" data-tab="diagnoses">Diagnoses</a>
-        
-        <!-- Labs and Measurements -->
-        <a href="#" class="tab" data-tab="cmp_labs">CMP Labs</a>
-        <a href="#" class="tab" data-tab="cbc_labs">CBC Labs</a>
-        <a href="#" class="tab" data-tab="vitals">Vital Signs</a>
-        <a href="#" class="tab" data-tab="measurements">Measurements</a>
-        
-        <!-- Medical Records -->
-        <a href="#" class="tab" data-tab="medications">Medications</a>
-        <a href="#" class="tab" data-tab="symptoms">Symptoms</a>
-        <a href="#" class="tab" data-tab="imaging">Imaging</a>
-        
-        <!-- Additional Records -->
-        <a href="#" class="tab" data-tab="occurrences">Occurrences</a>
-        <a href="#" class="tab" data-tab="record_requests">Record Requests</a>
+<div class="content-wrapper">
+    <div class="main-content">
+        <div class="tab-container" data-patient-id="{{ patient.id }}">
+            {% include 'patient_records/partials/_patient_tabs.html' %}
+        </div>
     </div>
-    <div class="tab-content">
-        <!-- Content will be loaded here via AJAX -->
+    
+    <div class="notes-sidebar">
+        {% include 'patient_records/partials/_notes_list.html' with notes=notes %}
     </div>
 </div>
 
-{% endblock %}
-
-{% block extra_css %}
-<style>
-    .action-menu {
-        margin-bottom: 2rem;
-    }
-
-    .dropdown {
-        position: relative;
-        display: inline-block;
-    }
-
-    .dropdown-toggle {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-    }
-
-    .dropdown-menu {
-        display: none;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        background: white;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-lg);
-        min-width: 240px;
-        z-index: 1000;
-        padding: 0.5rem;
-    }
-
-    .dropdown.active .dropdown-menu {
-        display: block;
-    }
-
-    .dropdown-section {
-        padding: 0.5rem;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .dropdown-section:last-child {
-        border-bottom: none;
-    }
-
-    .dropdown-section h3 {
-        font-size: 0.875rem;
-        color: var(--text-muted);
-        margin: 0 0 0.5rem 0;
-        padding: 0 0.5rem;
-    }
-
-    .dropdown-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem;
-        color: var(--color-dark);
-        text-decoration: none;
-        border-radius: var(--radius-sm);
-        transition: all 0.2s ease;
-    }
-
-    .dropdown-item:hover {
-        background: var(--color-light);
-        color: var(--color-primary);
-    }
-
-    .dropdown-item i {
-        width: 1rem;
-        text-align: center;
-    }
-</style>
+{% include 'patient_records/partials/_note_form.html' %}
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const dropdown = document.querySelector('.dropdown');
-    const dropdownToggle = dropdown.querySelector('.dropdown-toggle');
-
-    dropdownToggle.addEventListener('click', function(e) {
-        e.preventDefault();
-        dropdown.classList.toggle('active');
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!dropdown.contains(e.target)) {
-            dropdown.classList.remove('active');
-        }
-    });
-});
-</script>
+<script src="{% static 'js/patient_detail.js' %}"></script>
+<script src="{% static 'js/notes.js' %}"></script>
 {% endblock %}

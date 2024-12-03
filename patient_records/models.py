@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 import datetime
 import uuid
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 class Provider(models.Model):
     id = models.AutoField(primary_key=True)
@@ -314,4 +316,68 @@ class ClinicalNotes(models.Model):
 
     def __str__(self):
         return f"Clinical Note - {self.patient} - {self.date}"
+
+class NoteTag(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+class PatientNote(models.Model):
+    NOTE_CATEGORIES = [
+        ('OVERVIEW', 'Overview'),
+        ('CLINICAL', 'Clinical Data'),
+        ('VISITS', 'Visits'),
+        ('MEDICATIONS', 'Medications'),
+        ('LABS', 'Lab Results'),
+        ('VITALS', 'Vital Signs'),
+        ('GENERAL', 'General Notes'),
+    ]
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='notes')
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    category = models.CharField(max_length=20, choices=NOTE_CATEGORIES, default='GENERAL')
+    tags = models.ManyToManyField(NoteTag, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_pinned = models.BooleanField(default=False)
+    
+    # Reference to any patient record
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.CharField(max_length=100, null=True, blank=True)
+    referenced_record = GenericForeignKey('content_type', 'object_id')
+
+    class Meta:
+        ordering = ['-is_pinned', '-created_at']
+        indexes = [
+            models.Index(fields=['patient', '-created_at']),
+            models.Index(fields=['category']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.patient}"
+
+    @property
+    def short_content(self):
+        """Return truncated content for preview"""
+        return self.content[:150] + '...' if len(self.content) > 150 else self.content
+
+class NoteAttachment(models.Model):
+    note = models.ForeignKey(PatientNote, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='note_attachments/%Y/%m/%d/')
+    filename = models.CharField(max_length=255)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    file_type = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.filename
+
+    def save(self, *args, **kwargs):
+        if not self.filename:
+            self.filename = self.file.name
+        super().save(*args, **kwargs)
 

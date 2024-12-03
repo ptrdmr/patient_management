@@ -1,0 +1,74 @@
+{% if note %}
+<div class="note-detail" data-note-id="{{ note.id }}">
+    <div class="note-detail-header">
+        <div class="note-title-area">
+            <h4>{{ note.title }}</h4>
+            <div class="note-meta">
+                <span class="note-category badge bg-secondary">{{ note.get_category_display }}</span>
+                <span class="note-date">Created: {{ note.created_at|date:"M d, Y" }}</span>
+                {% if note.updated_at != note.created_at %}
+                    <span class="note-date">Updated: {{ note.updated_at|date:"M d, Y" }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="note-actions">
+            <button class="btn btn-link btn-sm toggle-pin" data-note-id="{{ note.id }}">
+                <i class="fas {% if note.is_pinned %}fa-thumbtack{% else %}fa-thumbtack text-muted{% endif %}"></i>
+            </button>
+            <button class="btn btn-link btn-sm edit-note" data-note-id="{{ note.id }}">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-link btn-sm text-danger delete-note" data-note-id="{{ note.id }}">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+
+    <div class="note-content">
+        {{ note.content|linebreaks }}
+    </div>
+
+    {% if note.referenced_record %}
+        <div class="note-references">
+            <h5>Referenced Record</h5>
+            <div class="reference-item">
+                <i class="fas fa-link"></i> {{ note.referenced_record }}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if note.tags.exists %}
+        <div class="note-tags">
+            <h5>Tags</h5>
+            {% for tag in note.tags.all %}
+                <span class="badge bg-info">{{ tag.name }}</span>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if note.attachments.exists %}
+        <div class="note-attachments">
+            <h5>Attachments</h5>
+            <div class="attachment-list">
+                {% for attachment in note.attachments.all %}
+                    <div class="attachment-item">
+                        <i class="fas fa-paperclip"></i>
+                        <a href="{{ attachment.file.url }}" target="_blank">{{ attachment.filename }}</a>
+                        <span class="attachment-date">{{ attachment.uploaded_at|date:"M d, Y" }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="note-footer">
+        <small class="text-muted">
+            Created by {{ note.created_by.get_full_name|default:note.created_by.username }}
+        </small>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <p>Select a note to view or create a new one</p>
+</div>
+{% endif %} 

@@ -32,6 +32,7 @@ from django.db.models import Model, Q
 from typing import Optional, Dict, Any
 from django.views.decorators.http import require_http_methods
 from .forms import VisitsForm, AdlsForm, ImagingForm, RecordRequestLogForm
+from django.contrib.contenttypes.models import ContentType
 
 # Initialize the logger for this module
 logger = logging.getLogger('patient_records')  # Note: use the specific logger name we defined in settings.py
@@ -210,7 +211,6 @@ def patient_detail(request, patient_id):
     try:
         # Get patient with all fields
         patient = Patient.objects.get(id=patient_id)
-        today = datetime.date.today()
         
         # Create context with processed data
         context = {
@@ -218,13 +218,15 @@ def patient_detail(request, patient_id):
             'recent_medications': Medications.objects.filter(
                 patient=patient
             ).filter(
-                Q(dc_date__isnull=True) | Q(dc_date__gt=today)
+                Q(dc_date__isnull=True) | Q(dc_date__gt=datetime.date.today())
             ).order_by('-date_prescribed')[:5],
             'audit_trail': AuditTrail.objects.filter(patient=patient).order_by('-timestamp')[:5],
             'breadcrumbs': [
                 {'label': 'Patients', 'url': reverse('patient_list')},
                 {'label': f"{patient.first_name} {patient.last_name}", 'url': None}
             ],
+            'note_categories': PatientNote.NOTE_CATEGORIES,
+            'notes': PatientNote.objects.filter(patient=patient).order_by('-is_pinned', '-created_at')
         }
 
         # Handle AJAX tab loading
@@ -298,42 +300,76 @@ def vital_signs_form(request, patient_id):
     return render(request, 'patient_records/add_vitals.html', context)
 
 @login_required
-def add_labs(request, patient_id):
+def add_cmp_labs(request, patient_id):
+    """Add CMP lab results for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
-    cmp_form = CmpLabsForm()
-    cbc_form = CbcLabsForm()
     
     if request.method == 'POST':
-        lab_type = request.POST.get('lab_type')
-        if lab_type == 'cmp':
-            form = CmpLabsForm(request.POST)
-        else:
-            form = CbcLabsForm(request.POST)
-            
+        form = CMPLabForm(request.POST)
         if form.is_valid():
             lab = form.save(commit=False)
             lab.patient = patient
             lab.save()
-            messages.success(request, 'Lab results added successfully!')
-            return redirect('patient_detail', patient_id=patient_id)
-        else:
-            if lab_type == 'cmp':
-                cmp_form = form
-            else:
-                cbc_form = form
+            
+            create_audit_trail(
+                record=lab,
+                action='CREATE',
+                user=request.user,
+                new_values=model_to_dict(lab)
+            )
+            
+            messages.success(request, 'CMP Lab results added successfully!')
+            return redirect('patient_detail', patient_id=patient.id)
+    else:
+        form = CMPLabForm()
     
     context = {
         'patient': patient,
-        'cmp_form': cmp_form,
-        'cbc_form': cbc_form,
-        'form_title': 'Add Lab Results',
+        'cmp_form': form,
         'breadcrumbs': [
             {'label': 'Patients', 'url': reverse('patient_list')},
-            {'label': str(patient), 'url': reverse('patient_detail', args=[patient.id])},
-            {'label': 'Add Labs', 'url': None}
-        ]
+            {'label': f"{patient.first_name} {patient.last_name}", 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Add CMP Labs', 'url': None}
+        ],
+        'cancel_url': reverse('patient_detail', args=[patient.id])
     }
-    return render(request, 'patient_records/add_labs.html', context)
+    return render(request, 'patient_records/add_cmp_labs.html', context)
+
+@login_required
+def add_cbc_labs(request, patient_id):
+    """Add CBC lab results for a patient"""
+    patient = get_object_or_404(Patient, id=patient_id)
+    
+    if request.method == 'POST':
+        form = CBCLabForm(request.POST)
+        if form.is_valid():
+            lab = form.save(commit=False)
+            lab.patient = patient
+            lab.save()
+            
+            create_audit_trail(
+                record=lab,
+                action='CREATE',
+                user=request.user,
+                new_values=model_to_dict(lab)
+            )
+            
+            messages.success(request, 'CBC Lab results added successfully!')
+            return redirect('patient_detail', patient_id=patient.id)
+    else:
+        form = CBCLabForm()
+    
+    context = {
+        'patient': patient,
+        'cbc_form': form,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f"{patient.first_name} {patient.last_name}", 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Add CBC Labs', 'url': None}
+        ],
+        'cancel_url': reverse('patient_detail', args=[patient.id])
+    }
+    return render(request, 'patient_records/add_cbc_labs.html', context)
 
 @login_required
 def add_medications(request, patient_id):
@@ -910,4 +946,230 @@ def add_record_request(request, patient_id):
     return render(request, 'patient_records/add_record_request.html', {
         'form': form,
         'patient': patient,
+    })
+
+@login_required
+def patient_notes(request, patient_id):
+    """Get all notes for a patient"""
+    patient = get_object_or_404(Patient, id=patient_id)
+    notes = PatientNote.objects.filter(patient=patient)
+    
+    context = {
+        'patient': patient,
+        'notes': notes,
+    }
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('patient_records/partials/_notes_list.html', context)
+        return JsonResponse({'html': html})
+    
+    return render(request, 'patient_records/notes.html', context)
+
+@login_required
+def create_note(request):
+    """Create a new patient note"""
+    if request.method == 'POST':
+        try:
+            # Get patient ID from form data
+            patient_id = request.POST.get('patient')
+            if not patient_id:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'patient': ['Patient ID is required']}
+                }, status=400)
+
+            # Get patient instance
+            try:
+                patient = Patient.objects.get(id=patient_id)
+            except Patient.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'patient': ['Invalid patient ID']}
+                }, status=400)
+            
+            # Create form instance with files
+            post_data = request.POST.copy()  # Make a mutable copy
+            post_data['patient'] = patient.id  # Ensure patient ID is in form data
+            
+            form = PatientNoteForm(post_data, request.FILES)
+            
+            if form.is_valid():
+                note = form.save(commit=False)
+                note.patient = patient
+                note.created_by = request.user
+                note.save()
+                
+                # Save tags
+                if 'tags' in form.cleaned_data:
+                    tags = form.cleaned_data['tags']
+                    if isinstance(tags, str):
+                        # Split by comma and strip whitespace
+                        tags = [tag.strip() for tag in tags.split(',') if tag.strip()]
+                    for tag_name in tags:
+                        tag, _ = NoteTag.objects.get_or_create(name=tag_name)
+                        note.tags.add(tag)
+                
+                # Handle file attachments
+                files = request.FILES.getlist('attachments')
+                for file in files:
+                    NoteAttachment.objects.create(note=note, file=file)
+
+                return JsonResponse({
+                    'success': True,
+                    'noteId': note.id,
+                    'message': 'Note created successfully'
+                })
+            else:
+                print("Form validation errors:", form.errors)  # Debug print
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
+                
+        except Exception as e:
+            import traceback
+            print(f"Error creating note: {str(e)}")
+            print(traceback.format_exc())  # Print full traceback
+            return JsonResponse({
+                'success': False,
+                'errors': {'__all__': ['An error occurred while creating the note']}
+            }, status=500)
+    else:
+        form = PatientNoteForm()
+        html = render_to_string('patient_records/partials/_note_form.html', {
+            'form': form,
+            'form_title': 'Create New Note'
+        })
+        return JsonResponse({
+            'success': True,
+            'html': html
+        })
+
+@login_required
+def edit_note(request, note_id):
+    """Edit an existing patient note"""
+    note = get_object_or_404(PatientNote, id=note_id)
+    if request.method == 'POST':
+        form = PatientNoteForm(request.POST, request.FILES, instance=note)
+        if form.is_valid():
+            note = form.save()
+            
+            # Handle tags
+            if 'tags' in form.cleaned_data:
+                note.tags.clear()
+                tags = form.cleaned_data['tags']
+                if isinstance(tags, str):
+                    tags = [tag.strip() for tag in tags.split(',') if tag.strip()]
+                for tag_name in tags:
+                    tag, _ = NoteTag.objects.get_or_create(name=tag_name)
+                    note.tags.add(tag)
+            
+            # Handle attachments
+            files = request.FILES.getlist('attachments')
+            for file in files:
+                NoteAttachment.objects.create(note=note, file=file)
+            
+            return JsonResponse({
+                'success': True,
+                'noteId': note.id,
+                'message': 'Note updated successfully'
+            })
+        return JsonResponse({
+            'success': False,
+            'errors': form.errors
+        }, status=400)
+    else:
+        # Return note data for editing
+        return JsonResponse({
+            'success': True,
+            'note': {
+                'title': note.title,
+                'category': note.category,
+                'content': note.content,
+                'tags': [tag.name for tag in note.tags.all()],
+                'is_pinned': note.is_pinned
+            }
+        })
+
+@login_required
+def delete_note(request, note_id):
+    """Delete a patient note"""
+    if request.method == 'POST':
+        note = get_object_or_404(PatientNote, id=note_id)
+        note.delete()
+        return JsonResponse({
+            'success': True,
+            'message': 'Note deleted successfully'
+        })
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method'
+    }, status=400)
+
+@login_required
+def note_detail(request, note_id):
+    """Get note details"""
+    note = get_object_or_404(PatientNote, id=note_id)
+    html = render_to_string('patient_records/partials/_note_detail.html', {
+        'note': note
+    })
+    return JsonResponse({
+        'success': True,
+        'html': html
+    })
+
+@login_required
+def toggle_pin_note(request, note_id):
+    """Toggle pin status of a note"""
+    note = get_object_or_404(PatientNote, id=note_id)
+    note.is_pinned = not note.is_pinned
+    note.save()
+    return JsonResponse({
+        'success': True,
+        'message': f'Note {"pinned" if note.is_pinned else "unpinned"} successfully'
+    })
+
+@login_required
+def patient_notes(request):
+    """Get filtered notes list"""
+    patient_id = request.GET.get('patient')
+    category = request.GET.get('category')
+    
+    notes = PatientNote.objects.all()
+    if patient_id:
+        notes = notes.filter(patient_id=patient_id)
+    if category:
+        notes = notes.filter(category=category)
+    
+    notes = notes.order_by('-is_pinned', '-created_at')
+    
+    html = render_to_string('patient_records/partials/_notes_list.html', {
+        'notes': notes
+    })
+    return JsonResponse({
+        'success': True,
+        'html': html,
+        'count': notes.count()
+    })
+
+@login_required
+def get_note_detail(request, note_id):
+    """Get note details for quick view"""
+    note = get_object_or_404(PatientNote, id=note_id)
+    return JsonResponse({
+        'success': True,
+        'note': {
+            'title': note.title,
+            'content': note.content,
+            'category_display': note.get_category_display(),
+            'is_pinned': note.is_pinned,
+            'tags': [tag.name for tag in note.tags.all()],
+            'attachments': [{
+                'url': attachment.file.url,
+                'filename': attachment.file.name.split('/')[-1]
+            } for attachment in note.attachments.all()],
+            'created_by': note.created_by.get_full_name() if note.created_by else 'Unknown',
+            'created_at': note.created_at.strftime('%Y-%m-%d %H:%M %p'),
+            'updated_at': note.updated_at.strftime('%Y-%m-%d %H:%M %p')
+        }
     })

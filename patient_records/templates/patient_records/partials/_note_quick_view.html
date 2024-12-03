@@ -1,0 +1,37 @@
+<!-- Quick View Modal -->
+<div class="modal fade" id="noteQuickViewModal" tabindex="-1" aria-labelledby="noteQuickViewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="noteQuickViewModalLabel">
+                    <span class="note-title"></span>
+                    {% if note.is_pinned %}
+                        <i class="fas fa-thumbtack text-primary ms-2"></i>
+                    {% endif %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="quick-view-content">
+                    <div class="note-category mb-3">
+                        <span class="badge bg-secondary"></span>
+                    </div>
+                    <div class="note-content mb-4"></div>
+                    <div class="note-tags mb-3">
+                        <h6 class="text-muted mb-2">Tags</h6>
+                        <div class="tags-container"></div>
+                    </div>
+                    <div class="note-attachments mb-3">
+                        <h6 class="text-muted mb-2">Attachments</h6>
+                        <div class="attachments-container"></div>
+                    </div>
+                    <div class="note-meta text-muted">
+                        <small class="created-by"></small>
+                        <br>
+                        <small class="last-edited"></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 
