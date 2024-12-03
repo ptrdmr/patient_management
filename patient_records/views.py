@@ -33,6 +33,7 @@ from typing import Optional, Dict, Any
 from django.views.decorators.http import require_http_methods
 from .forms import VisitsForm, AdlsForm, ImagingForm, RecordRequestLogForm
 from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 
 # Initialize the logger for this module
 logger = logging.getLogger('patient_records')  # Note: use the specific logger name we defined in settings.py
@@ -163,45 +164,88 @@ def add_patient(request):
 
 @login_required
 def patient_list(request):
-    """View list of all patients"""
-    breadcrumbs = [
-        {'label': 'Patients', 'url': None}
-    ]
-    
-    search_query = request.GET.get('search', '')
-    sort_option = request.GET.get('sort', 'date')
-    page_number = request.GET.get('page')
-
+    """View list of all patients with advanced search capabilities"""
+    search_form = PatientSearchForm(request.GET)
     patients = Patient.objects.all()
 
-    if search_query:
-        patients = patients.filter(poa_name__icontains=search_query) | patients.filter(id__icontains=search_query)
+    if search_form.is_valid():
+        # Basic search
+        search = search_form.cleaned_data.get('search')
+        if search:
+            patients = patients.filter(
+                Q(first_name__icontains=search) |
+                Q(middle_name__icontains=search) |
+                Q(last_name__icontains=search)
+            )
 
-    if sort_option:
-        patients = patients.order_by(sort_option)
+        # Patient ID search
+        patient_id = search_form.cleaned_data.get('patient_id')
+        if patient_id:
+            patients = patients.filter(patient_number__icontains=patient_id)
 
+        # ICD Code/Diagnosis search
+        diagnosis_text = search_form.cleaned_data.get('diagnosis_text')
+        if diagnosis_text:
+            patients = patients.filter(diagnosis__diagnosis__iexact=diagnosis_text).distinct()
+
+        # Demographics filters
+        age_min = search_form.cleaned_data.get('age_min')
+        age_max = search_form.cleaned_data.get('age_max')
+        if age_min:
+            min_date = timezone.now().date() - timezone.timedelta(days=age_min*365)
+            patients = patients.filter(date_of_birth__lte=min_date)
+        if age_max:
+            max_date = timezone.now().date() - timezone.timedelta(days=age_max*365)
+            patients = patients.filter(date_of_birth__gte=max_date)
+
+        gender = search_form.cleaned_data.get('gender')
+        if gender:
+            patients = patients.filter(gender=gender)
+
+        # Date filters
+        date_from = search_form.cleaned_data.get('date_added_from')
+        date_to = search_form.cleaned_data.get('date_added_to')
+        if date_from:
+            patients = patients.filter(date__gte=date_from)
+        if date_to:
+            patients = patients.filter(date__lte=date_to)
+
+        # Sort options
+        sort_by = search_form.cleaned_data.get('sort_by')
+        if sort_by:
+            patients = patients.order_by(sort_by)
+        else:
+            patients = patients.order_by('last_name', 'first_name')
+
+    # Pagination
     paginator = Paginator(patients, 10)
+    page_number = request.GET.get('page')
     try:
         page_obj = paginator.get_page(page_number)
     except (PageNotAnInteger, EmptyPage) as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'error': str(e)}, status=400)
+        page_obj = paginator.get_page(1)
 
     context = {
         'patients': page_obj,
+        'search_form': search_form,
         'is_paginated': paginator.num_pages > 1,
         'page_obj': page_obj,
-        'search_query': search_query,
-        'sort_option': sort_option,
-        'breadcrumbs': breadcrumbs,
+        'total_patients': patients.count(),
+        'breadcrumbs': [{'label': 'Patients', 'url': None}],
         'page_title': 'Patient List'
     }
 
     # Handle AJAX requests
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        patient_list_html = render_to_string('patient_records/patient_list.html', context, request=request)
+        html = render_to_string('patient_records/partials/_patient_list.html', context, request=request)
+        pagination_html = render_to_string('components/_pagination.html', context, request=request)
+        results_info = render_to_string('patient_records/partials/_results_info.html', context, request=request)
         return JsonResponse({
-            'html': patient_list_html,
-            'success': True
+            'html': html,
+            'pagination': pagination_html,
+            'results_info': results_info
         })
 
     return render(request, 'patient_records/patient_list.html', context)

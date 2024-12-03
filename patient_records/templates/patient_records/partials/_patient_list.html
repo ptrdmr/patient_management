@@ -1,36 +1,32 @@
 {% load patient_tags %}
 
-{% if patients %}
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Patient ID</th>
-                <th>Name</th>
-                <th>DOB</th>
-                <th>Gender</th>
-                <th>Last Updated</th>
-                <th><span class="sr-only">View</span></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for patient in patients %}
-            <tr id="patient-{{ patient.id }}">
-                <td>{{ patient.patient_number }}</td>
-                <td><a href="{% url 'patient_detail' patient.id %}">{{ patient|full_name }}</a></td>
-                <td>{{ patient.date_of_birth|date:"M d, Y" }}</td>
-                <td>{{ patient.get_gender_display }}</td>
-                <td>{{ patient.last_updated|date:"M d, Y" }}</td>
-                <td class="actions">
-                    <a href="{% url 'patient_detail' patient.id %}" class="btn primary btn-sm">View</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    {% if is_paginated %}
-        {% include 'components/_pagination.html' %}
-    {% endif %}
-{% else %}
-    <p>No patients found.</p>
-{% endif %} 
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Patient ID</th>
+            <th>Name</th>
+            <th>DOB</th>
+            <th>Gender</th>
+            <th>Last Updated</th>
+            <th><span class="sr-only">Actions</span></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for patient in patients %}
+        <tr id="patient-{{ patient.id }}">
+            <td>{{ patient.patient_number }}</td>
+            <td><a href="{% url 'patient_detail' patient.id %}">{{ patient|full_name }}</a></td>
+            <td>{{ patient.date_of_birth|date:"M d, Y" }}</td>
+            <td>{{ patient.get_gender_display }}</td>
+            <td>{{ patient.last_updated|date:"M d, Y" }}</td>
+            <td class="actions">
+                <a href="{% url 'patient_detail' patient.id %}" class="btn primary btn-sm">View</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="no-results">No patients found matching your criteria.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table> 

@@ -4,13 +4,114 @@
 {% block title %}Home - Patient Management System{% endblock %}
 
 {% block content %}
-<h1>Welcome to Patient Management System</h1>
-<div class="quick-links">
-    <h2>Quick Links</h2>
-    <ul>
-        <li><a href="{% url 'add_patient' %}">Add New Patient</a></li>
-        <li><a href="{% url 'patient_list' %}">View All Patients</a></li>
-        <li><a href="{% url 'add_provider' %}">Add New Provider</a></li>
-    </ul>
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4 text-center mb-4">Welcome to Patient Management System</h1>
+            <p class="lead text-center text-muted">Streamlined healthcare management at your fingertips</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Quick Actions -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm hover-card" data-href="{% url 'add_patient' %}">
+                <div class="card-body text-center">
+                    <div class="feature-icon bg-primary bg-gradient text-white mb-3 rounded-circle p-3 d-inline-block">
+                        <i class="fas fa-user-plus fa-2x"></i>
+                    </div>
+                    <h5 class="card-title">New Patient</h5>
+                    <p class="card-text text-muted">Register a new patient in the system</p>
+                    <a href="{% url 'add_patient' %}" class="btn btn-outline-primary">Add Patient</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm hover-card" data-href="{% url 'patient_list' %}">
+                <div class="card-body text-center">
+                    <div class="feature-icon moritrac-green bg-gradient text-white mb-3 rounded-circle p-3 d-inline-block">
+                        <i class="fas fa-user-group fa-2x"></i>
+                    </div>
+                    <h5 class="card-title">Patient List</h5>
+                    <p class="card-text text-muted">View and manage all patients</p>
+                    <a href="{% url 'patient_list' %}" class="btn btn-outline-success">View Patients</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm hover-card" data-href="{% url 'add_provider' %}">
+                <div class="card-body text-center">
+                    <div class="feature-icon bg-info bg-gradient text-white mb-3 rounded-circle p-3 d-inline-block">
+                        <i class="fas fa-user-md fa-2x"></i>
+                    </div>
+                    <h5 class="card-title">New Provider</h5>
+                    <p class="card-text text-muted">Add a new healthcare provider</p>
+                    <a href="{% url 'add_provider' %}" class="btn btn-outline-info">Add Provider</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    .feature-icon {
+        width: 65px;
+        height: 65px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .hover-card {
+        transition: transform 0.2s ease-in-out;
+        cursor: pointer;
+    }
+    
+    .hover-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .btn-outline-primary:hover,
+    .btn-outline-success:hover,
+    .btn-outline-info:hover {
+        color: white;
+    }
+    
+    .bg-primary {
+        background-color: var(--primary-color) !important;
+    }
+    
+    .moritrac-green {
+        background-color: #2A7B6E !important;
+    }
+    
+    .text-muted {
+        color: #6c757d !important;
+    }
+
+    .btn-outline-success {
+        color: #2A7B6E;
+        border: none;
+        background: transparent;
+    }
+
+    .btn-outline-success:hover {
+        background-color: #2A7B6E;
+        border: none;
+        color: white;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.hover-card');
+        cards.forEach(card => {
+            card.addEventListener('click', function() {
+                window.location.href = this.dataset.href;
+            });
+        });
+    });
+</script>
 {% endblock %}
