@@ -1,0 +1,83 @@
+{% load static %}
+{% load patient_tags %}
+
+<link rel="stylesheet" href="{% static 'css/patient_overview.css' %}">
+
+<!-- Patient Overview Section -->
+<div class="overview-grid" style="display: grid !important;">
+    <!-- Demographics Card -->
+    <div class="overview-card" style="display: block !important;">
+        <h3><i class="fas fa-user"></i> Demographics</h3>
+        <div class="card-content" style="display: block !important;">
+            {% if patient %}
+                <p style="display: block !important;"><strong>Name:</strong> {{ patient.first_name }} {{ patient.last_name }}</p>
+                {% if patient.date_of_birth %}<p style="display: block !important;"><strong>DOB:</strong> {{ patient.date_of_birth|date:"M d, Y" }}</p>{% endif %}
+                {% if patient.gender %}<p style="display: block !important;"><strong>Gender:</strong> {{ patient.gender }}</p>{% endif %}
+                {% if patient.patient_number %}<p style="display: block !important;"><strong>Patient ID:</strong> {{ patient.patient_number }}</p>{% endif %}
+            {% else %}
+                <p class="text-muted">No demographic information available</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Latest Vitals Card -->
+    <div class="overview-card" style="display: block !important;">
+        <h3><i class="fas fa-heartbeat"></i> Latest Vitals</h3>
+        <div class="card-content" style="display: block !important;">
+            {% if latest_vitals %}
+                <p style="display: block !important;"><strong>BP:</strong> {{ latest_vitals.blood_pressure }}</p>
+                <p style="display: block !important;"><strong>Pulse:</strong> {{ latest_vitals.pulse }} bpm</p>
+                <p style="display: block !important;"><strong>Temp:</strong> {{ latest_vitals.temperature }}°F</p>
+                <p style="display: block !important;"><strong>O2 Sat:</strong> {{ latest_vitals.spo2 }}%</p>
+                <p style="display: block !important;"><strong>Taken:</strong> {{ latest_vitals.date|date:"M d, Y" }}</p>
+            {% else %}
+                <p class="text-muted">No vital signs recorded</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Active Diagnoses Card -->
+    <div class="overview-card" style="display: block !important;">
+        <h3><i class="fas fa-stethoscope"></i> Active Diagnoses</h3>
+        <div class="card-content" style="display: block !important;">
+            {% if active_diagnoses %}
+                <ul class="diagnosis-list">
+                    {% for diagnosis in active_diagnoses|slice:":5" %}
+                        <li>
+                            {{ diagnosis.diagnosis }}
+                            {% if diagnosis.icd_code %}<span class="text-muted">({{ diagnosis.icd_code }})</span>{% endif %}
+                            {% if diagnosis.date %}<br><small class="text-muted">{{ diagnosis.date|date:"M d, Y" }}</small>{% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">No diagnoses recorded</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Current Medications Card -->
+    <div class="overview-card" style="display: block !important;">
+        <h3><i class="fas fa-pills"></i> Current Medications</h3>
+        <div class="card-content" style="display: block !important;">
+            {% if current_medications %}
+                <ul class="medication-list">
+                    {% for med in current_medications|slice:":5" %}
+                        <li>
+                            {{ med.drug }}
+                            {% if med.dose or med.route or med.frequency %}
+                                <br><small class="text-muted">
+                                    {% if med.dose %}{{ med.dose }}{% endif %}
+                                    {% if med.route %} via {{ med.route }}{% endif %}
+                                    {% if med.frequency %} {{ med.frequency }}{% endif %}
+                                </small>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">No current medications</p>
+            {% endif %}
+        </div>
+    </div>
+</div> 

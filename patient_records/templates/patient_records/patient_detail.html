@@ -3,6 +3,36 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/shared/notes-modal.css' %}">
+<link rel="stylesheet" href="{% static 'css/patient_overview.css' %}">
+<style>
+.content-wrapper {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notes-sidebar {
+    width: 300px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1rem;
+}
+
+#patientOverview {
+    display: block !important;
+    visibility: visible !important;
+}
+
+.overview-section {
+    margin-bottom: 2rem;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -15,7 +45,7 @@
         </div>
     </div>
     <div class="header-actions">
-        <div class="dropdown">
+        <div class="dropdown me-2">
             <button class="btn btn-primary dropdown-toggle" type="button" id="addRecordDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-plus"></i> Add Record
             </button>
@@ -33,13 +63,35 @@
                 <li><a class="dropdown-item" href="{% url 'add_record_request' patient.id %}"><i class="fas fa-file-medical"></i> Add Record Request</a></li>
             </ul>
         </div>
+        <div class="dropdown">
+            <button class="btn btn-secondary dropdown-toggle" type="button" id="recordDetailsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                Record Details
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="recordDetailsDropdown">
+                <li><a class="dropdown-item" href="#" data-section="visits"><i class="fas fa-calendar-check"></i> Visits</a></li>
+                <li><a class="dropdown-item" href="#" data-section="adls"><i class="fas fa-tasks"></i> ADLs</a></li>
+                <li><a class="dropdown-item" href="#" data-section="diagnoses"><i class="fas fa-stethoscope"></i> Diagnoses</a></li>
+                <li><a class="dropdown-item" href="#" data-section="cmp_labs"><i class="fas fa-flask"></i> CMP Labs</a></li>
+                <li><a class="dropdown-item" href="#" data-section="cbc_labs"><i class="fas fa-vial"></i> CBC Labs</a></li>
+                <li><a class="dropdown-item" href="#" data-section="vitals"><i class="fas fa-heartbeat"></i> Vital Signs</a></li>
+                <li><a class="dropdown-item" href="#" data-section="measurements"><i class="fas fa-weight"></i> Measurements</a></li>
+                <li><a class="dropdown-item" href="#" data-section="medications"><i class="fas fa-pills"></i> Medications</a></li>
+                <li><a class="dropdown-item" href="#" data-section="symptoms"><i class="fas fa-thermometer-half"></i> Symptoms</a></li>
+                <li><a class="dropdown-item" href="#" data-section="imaging"><i class="fas fa-x-ray"></i> Imaging</a></li>
+                <li><a class="dropdown-item" href="#" data-section="occurrences"><i class="fas fa-exclamation-circle"></i> Occurrences</a></li>
+                <li><a class="dropdown-item" href="#" data-section="record_requests"><i class="fas fa-file-medical"></i> Record Requests</a></li>
+            </ul>
+        </div>
     </div>
 </div>
 
 <div class="content-wrapper">
     <div class="main-content">
-        <div class="tab-container" data-patient-id="{{ patient.id }}">
-            {% include 'patient_records/partials/_patient_tabs.html' %}
+        <div id="patientOverview" class="overview-section">
+            {% include 'patient_records/partials/_patient_overview.html' %}
+        </div>
+        <div id="detailContent" class="detail-content" style="display: none;">
+            <!-- Dynamic content will be loaded here -->
         </div>
     </div>
     

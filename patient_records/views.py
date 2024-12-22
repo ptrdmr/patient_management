@@ -255,16 +255,73 @@ def patient_detail(request, patient_id):
     try:
         # Get patient with all fields
         patient = Patient.objects.get(id=patient_id)
+        print("\n=== PATIENT DATA ===")
+        print(f"Patient ID: {patient.id}")
+        print(f"Name: {patient.first_name} {patient.last_name}")
+        print(f"DOB: {patient.date_of_birth}")
+        print(f"Gender: {patient.gender}")
+        print(f"Patient Number: {patient.patient_number}")
         
-        # Create context with processed data
+        # Get latest vitals
+        latest_vitals = Vitals.objects.filter(
+            patient=patient
+        ).order_by('-date').first()
+        print("\n=== LATEST VITALS ===")
+        if latest_vitals:
+            print(f"Vitals ID: {latest_vitals.id}")
+            print(f"Date: {latest_vitals.date}")
+            print(f"BP: {latest_vitals.blood_pressure}")
+            print(f"Pulse: {latest_vitals.pulse}")
+            print(f"Temp: {latest_vitals.temperature}")
+            print(f"SPO2: {latest_vitals.spo2}")
+        else:
+            print("No vitals found")
+
+        # Get diagnoses
+        active_diagnoses = Diagnosis.objects.filter(
+            patient=patient
+        ).order_by('-date')
+        print("\n=== ACTIVE DIAGNOSES ===")
+        print(f"Count: {active_diagnoses.count()}")
+        if active_diagnoses.exists():
+            first_dx = active_diagnoses.first()
+            print(f"First Diagnosis: {first_dx.diagnosis}")
+            print(f"ICD Code: {first_dx.icd_code}")
+            print(f"Date: {first_dx.date}")
+
+        # Get current medications
+        current_medications = Medications.objects.filter(
+            patient=patient
+        ).filter(
+            Q(dc_date__isnull=True) | Q(dc_date__gt=datetime.date.today())
+        ).order_by('-date_prescribed')
+        print("\n=== CURRENT MEDICATIONS ===")
+        print(f"Count: {current_medications.count()}")
+        if current_medications.exists():
+            first_med = current_medications.first()
+            print(f"First Med: {first_med.drug}")
+            print(f"Dose: {first_med.dose}")
+            print(f"Route: {first_med.route}")
+            print(f"Frequency: {first_med.frequency}")
+
+        # Get recent activities
+        recent_activities = AuditTrail.objects.filter(
+            patient=patient
+        ).order_by('-timestamp')[:5]
+        print("\n=== RECENT ACTIVITIES ===")
+        print(f"Count: {len(list(recent_activities))}")
+        if recent_activities.exists():
+            first_activity = recent_activities.first()
+            print(f"First Activity: {first_activity.action} {first_activity.record_type}")
+            print(f"Timestamp: {first_activity.timestamp}")
+        
+        # Create context with all required data
         context = {
             'patient': patient,
-            'recent_medications': Medications.objects.filter(
-                patient=patient
-            ).filter(
-                Q(dc_date__isnull=True) | Q(dc_date__gt=datetime.date.today())
-            ).order_by('-date_prescribed')[:5],
-            'audit_trail': AuditTrail.objects.filter(patient=patient).order_by('-timestamp')[:5],
+            'latest_vitals': latest_vitals,
+            'active_diagnoses': active_diagnoses,
+            'current_medications': current_medications,
+            'recent_activities': recent_activities,
             'breadcrumbs': [
                 {'label': 'Patients', 'url': reverse('patient_list')},
                 {'label': f"{patient.first_name} {patient.last_name}", 'url': None}
@@ -272,6 +329,14 @@ def patient_detail(request, patient_id):
             'note_categories': PatientNote.NOTE_CATEGORIES,
             'notes': PatientNote.objects.filter(patient=patient).order_by('-is_pinned', '-created_at')
         }
+
+        # Print final context data
+        print("\n=== CONTEXT VERIFICATION ===")
+        print(f"Patient in context: {bool(context['patient'])}")
+        print(f"Latest vitals in context: {bool(context['latest_vitals'])}")
+        print(f"Active diagnoses in context: {bool(context['active_diagnoses'])}")
+        print(f"Current medications in context: {bool(context['current_medications'])}")
+        print(f"Recent activities in context: {bool(context['recent_activities'])}")
 
         # Handle AJAX tab loading
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -283,6 +348,10 @@ def patient_detail(request, patient_id):
         
     except Patient.DoesNotExist:
         messages.error(request, 'Patient not found')
+        return redirect('patient_list')
+    except Exception as e:
+        print(f"Error in patient_detail view: {str(e)}")
+        messages.error(request, 'An error occurred while loading patient details')
         return redirect('patient_list')
 
 @login_required
