@@ -20,6 +20,9 @@
    - D3.js for complex custom visualizations
    - react-grid-layout for dashboard layout
    - react-table for data grid displays
+   - shadcn/ui (Clean, accessible components built on Radix UI)
+   - Recharts (Chart library built for React)
+   - Lucide React (Modern icon set)
 
 3. Data Management
    - Django REST Framework for API endpoints

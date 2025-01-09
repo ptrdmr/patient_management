@@ -35,6 +35,10 @@ urlpatterns = [
     
     # API endpoints
     path('api/icd-lookup/', views.icd_code_lookup, name='icd_code_lookup'),
+    path('api/patients/<int:patient_id>/latest-vitals/', views.get_latest_vitals, name='get_latest_vitals'),
+    path('api/patients/<int:patient_id>/latest-labs/', views.get_latest_labs, name='get_latest_labs'),
+    path('api/patients/<int:patient_id>/latest-measurements/', views.get_latest_measurements, name='get_latest_measurements'),
+    path('api/patients/<int:patient_id>/dashboard-metrics/', views.get_dashboard_metrics, name='get_dashboard_metrics'),
     
     # Tab data
     path('patient/<int:patient_id>/tab/<str:tab_name>/', views.patient_tab_data, name='patient_tab_data'),
@@ -46,4 +50,8 @@ urlpatterns = [
     path('patient/notes/<int:note_id>/edit/', views.edit_note, name='edit_note'),
     path('patient/notes/<int:note_id>/delete/', views.delete_note, name='delete_note'),
     path('patient/notes/<int:note_id>/toggle-pin/', views.toggle_pin_note, name='toggle_pin_note'),
+    
+    # Dashboard URLs
+    path('dashboard/', views.overview_dashboard, name='overview_dashboard'),
+    path('api/dashboard/overview/', views.dashboard_data, name='dashboard_data'),
 ]

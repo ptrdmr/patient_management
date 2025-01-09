@@ -52,7 +52,7 @@ Please analyze the following components of my Django project:
    - AJAX form submissions
 
 ### Current Request
-[INSERT YOUR SPECIFIC REQUEST HERE]
+One last thing for the night. The "Record Details" button on the home page should take us to a new page for each record type where it lists all the raw records for that type.
 
 ### Implementation Requirements
 When implementing changes:

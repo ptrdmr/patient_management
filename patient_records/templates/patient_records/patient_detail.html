@@ -4,6 +4,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/shared/notes-modal.css' %}">
 <link rel="stylesheet" href="{% static 'css/patient_overview.css' %}">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 <style>
 .content-wrapper {
     display: flex;
@@ -90,6 +91,113 @@
         <div id="patientOverview" class="overview-section">
             {% include 'patient_records/partials/_patient_overview.html' %}
         </div>
+        
+        <div id="patientDashboard" class="dashboard-section">
+            <div class="dashboard-header">
+                <h2>Patient Overview Dashboard</h2>
+                <div class="date-range">
+                    <button class="btn btn-secondary all-time-btn">All Time</button>
+                    <input type="date" class="form-control" id="startDate">
+                    <span>to</span>
+                    <input type="date" class="form-control" id="endDate">
+                    <button class="btn btn-primary refresh-btn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Key Metrics Section -->
+                <div class="metric-card">
+                    <h3>Total Visits</h3>
+                    <div class="metric-value" data-metric="total_visits">11</div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Active Medications</h3>
+                    <div class="metric-value" data-metric="active_medications">11</div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Recent Labs</h3>
+                    <div class="metric-value" data-metric="recent_labs">1</div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Pending Tasks</h3>
+                    <div class="metric-value" data-metric="pending_tasks">0</div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>Heart Rate</h3>
+                    <div class="metric-value" data-metric="hr">72</div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>Glucose</h3>
+                    <div class="metric-value" data-metric="glucose">78.00 mg/dL</div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>WBC</h3>
+                    <div class="metric-value" data-metric="wbc">7.63 K/µL</div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>Weight</h3>
+                    <div class="metric-value" data-metric="weight">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>Blood Pressure</h3>
+                    <div class="metric-value" data-metric="bp">139/69</div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>BMI</h3>
+                    <div class="metric-value" data-metric="bmi">--</div>
+                </div>
+
+                <!-- Vitals Chart Section -->
+                <section class="chart-card">
+                    <h3>Recent Vital Signs</h3>
+                    <div class="chart-container">
+                        <canvas id="vitalsTrendChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Recent Activity Section -->
+                <section class="activity-card">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list">
+                        {% for activity in recent_activities %}
+                        <div class="activity-item">
+                            <span class="activity-time">{{ activity.timestamp|date:"M d, Y H:i" }}</span>
+                            <span class="activity-type">{{ activity.action }}</span>
+                        </div>
+                        {% empty %}
+                        <p>No recent activity</p>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <!-- Alerts Section -->
+                <section class="alerts-card">
+                    <h3>Alerts</h3>
+                    <div class="alerts-list">
+                        {% for alert in alerts %}
+                        <div class="alert-item alert-{{ alert.severity }}">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span class="alert-message">{{ alert.message }}</span>
+                        </div>
+                        {% empty %}
+                        <p>No active alerts</p>
+                        {% endfor %}
+                    </div>
+                </section>
+            </div>
+        </div>
+
         <div id="detailContent" class="detail-content" style="display: none;">
             <!-- Dynamic content will be loaded here -->
         </div>
@@ -106,4 +214,8 @@
 {% block extra_js %}
 <script src="{% static 'js/patient_detail.js' %}"></script>
 <script src="{% static 'js/notes.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
 {% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'patient_records/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboards/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Dashboard Header -->
+    <header class="dashboard-header">
+        <div class="dashboard-title">
+            <h1>{% block dashboard_title %}Dashboard{% endblock %}</h1>
+        </div>
+        <div class="dashboard-controls">
+            {% block dashboard_controls %}
+            <div class="date-range-picker">
+                <input type="date" id="startDate" name="startDate">
+                <span>to</span>
+                <input type="date" id="endDate" name="endDate">
+            </div>
+            <button class="btn-primary refresh-data">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            {% endblock %}
+        </div>
+    </header>
+
+    <!-- Dashboard Content -->
+    <main class="dashboard-content">
+        {% block dashboard_content %}
+        <!-- Will be overridden by specific dashboards -->
+        {% endblock %}
+    </main>
+
+    <!-- Dashboard Footer -->
+    <footer class="dashboard-footer">
+        {% block dashboard_footer %}
+        <div class="last-updated">
+            Last updated: <span id="lastUpdateTime"></span>
+        </div>
+        {% endblock %}
+    </footer>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboards/base_dashboard.js' %}"></script>
+{% block dashboard_js %}{% endblock %}
+{% endblock %} 

@@ -38,6 +38,17 @@ from django.utils import timezone
 # Initialize the logger for this module
 logger = logging.getLogger('patient_records')  # Note: use the specific logger name we defined in settings.py
 
+class CustomLoginView(LoginView):
+    template_name = 'registration/login.html'
+    
+    def get_success_url(self):
+        return '/home/'  # Return absolute URL
+    
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('/home/')  # Use absolute URL
+        return super().get(request, *args, **kwargs)
+
 def serialize_model_data(record_dict: Dict) -> Dict:
     """Helper function to serialize model data for JSON storage"""
     serialized = {}
@@ -773,17 +784,6 @@ def edit_provider(request, provider_id):
     }
     return render(request, 'patient_records/base_form.html', context)
 
-class CustomLoginView(LoginView):
-    template_name = 'registration/login.html'
-    
-    def get_success_url(self):
-        return '/home/'  # Return absolute URL
-    
-    def get(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            return redirect('/home/')  # Use absolute URL
-        return super().get(request, *args, **kwargs)
-
 def custom_logout(request):
     logout(request)
     return redirect('login')
@@ -1286,3 +1286,353 @@ def get_note_detail(request, note_id):
             'updated_at': note.updated_at.strftime('%Y-%m-%d %H:%M %p')
         }
     })
+
+@login_required
+def overview_dashboard(request):
+    """View for the overview dashboard"""
+    context = {
+        'breadcrumbs': [
+            {'label': 'Dashboards', 'url': None},
+            {'label': 'Overview', 'url': None}
+        ],
+        'page_title': 'Overview Dashboard'
+    }
+    return render(request, 'dashboards/overview_dashboard.html', context)
+
+@login_required
+def dashboard_data(request):
+    """API endpoint for dashboard data"""
+    try:
+        # Get date range from request
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+        
+        # Convert to datetime objects
+        start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # Get metrics
+        metrics = {
+            'total_visits': Visits.objects.filter(date__range=[start_date, end_date]).count(),
+            'active_medications': Medications.objects.filter(
+                Q(dc_date__isnull=True) | Q(dc_date__gt=timezone.now())
+            ).count(),
+            'recent_labs': CmpLabs.objects.filter(date__range=[start_date, end_date]).count(),
+            'pending_tasks': RecordRequestLog.objects.filter(
+                status='pending',
+                date__range=[start_date, end_date]
+            ).count()
+        }
+        
+        # Get vitals data
+        vitals = Vitals.objects.filter(date__range=[start_date, end_date]).order_by('date')
+        vitals_data = {
+            'dates': [v.date.isoformat() for v in vitals],
+            'systolic': [v.systolic for v in vitals],
+            'diastolic': [v.diastolic for v in vitals],
+            'heartRate': [v.pulse for v in vitals]
+        }
+        
+        # Get recent activities
+        activities = AuditTrail.objects.filter(
+            timestamp__date__range=[start_date, end_date]
+        ).order_by('-timestamp')[:10]
+        activities_data = [{
+            'timestamp': activity.timestamp.isoformat(),
+            'action': activity.action,
+            'description': f"{activity.record_type} - {activity.patient_identifier}"
+        } for activity in activities]
+        
+        # Generate alerts
+        alerts = []
+        
+        # Check for abnormal vitals
+        recent_vitals = Vitals.objects.filter(date__range=[start_date, end_date])
+        for vital in recent_vitals:
+            if vital.systolic > 180 or vital.diastolic > 110:
+                alerts.append({
+                    'severity': 'high',
+                    'message': f'High blood pressure reading: {vital.blood_pressure} on {vital.date}'
+                })
+            elif vital.temperature > 38.3:  # >101°F
+                alerts.append({
+                    'severity': 'high',
+                    'message': f'High temperature: {vital.temperature}°C on {vital.date}'
+                })
+        
+        # Check for pending record requests
+        pending_requests = RecordRequestLog.objects.filter(
+            status='pending',
+            date__range=[start_date, end_date]
+        )
+        if pending_requests.exists():
+            alerts.append({
+                'severity': 'medium',
+                'message': f'{pending_requests.count()} pending record requests'
+            })
+        
+        return JsonResponse({
+            'metrics': metrics,
+            'vitals': vitals_data,
+            'activities': activities_data,
+            'alerts': alerts
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': str(e)
+        }, status=400)
+
+@login_required
+def get_latest_vitals(request, patient_id):
+    """API endpoint for latest vitals data"""
+    try:
+        patient = get_object_or_404(Patient, id=patient_id)
+        
+        # Get latest vitals
+        latest_vitals = Vitals.objects.filter(patient=patient).order_by('-date').first()
+        
+        # Get vitals history for chart
+        vitals_history = Vitals.objects.filter(
+            patient=patient,
+            date__gte=timezone.now() - timezone.timedelta(days=30)  # Last 30 days
+        ).order_by('date')
+        
+        history_data = [{
+            'date': vital.date.isoformat(),
+            'systolic': vital.systolic,
+            'diastolic': vital.diastolic,
+            'heart_rate': vital.pulse
+        } for vital in vitals_history]
+        
+        if latest_vitals:
+            data = {
+                'systolic': latest_vitals.systolic,
+                'diastolic': latest_vitals.diastolic,
+                'heart_rate': latest_vitals.pulse,
+                'history': history_data
+            }
+        else:
+            data = {
+                'systolic': None,
+                'diastolic': None,
+                'heart_rate': None,
+                'history': []
+            }
+        
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def get_latest_labs(request, patient_id):
+    """API endpoint for latest labs data"""
+    try:
+        patient = get_object_or_404(Patient, id=patient_id)
+        
+        # Get latest CMP labs
+        latest_cmp = CmpLabs.objects.filter(patient=patient).order_by('-date').first()
+        
+        # Get latest CBC labs
+        latest_cbc = CbcLabs.objects.filter(patient=patient).order_by('-date').first()
+        
+        data = {
+            'glucose': latest_cmp.glucose if latest_cmp else None,
+            'wbc': latest_cbc.wbc if latest_cbc else None
+        }
+        
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def get_latest_measurements(request, patient_id):
+    """API endpoint for latest measurements data"""
+    try:
+        patient = get_object_or_404(Patient, id=patient_id)
+        
+        # Get latest measurements
+        latest_measurements = Measurements.objects.filter(patient=patient).order_by('-date').first()
+        
+        if latest_measurements:
+            # Calculate BMI
+            weight_kg = latest_measurements.weight * 0.453592  # Convert lbs to kg
+            height_m = latest_measurements.height * 0.0254    # Convert inches to meters
+            bmi = weight_kg / (height_m * height_m) if height_m > 0 else None
+            
+            data = {
+                'weight': latest_measurements.weight,
+                'bmi': round(bmi, 1) if bmi else None
+            }
+        else:
+            data = {
+                'weight': None,
+                'bmi': None
+            }
+        
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def get_dashboard_metrics(request, patient_id):
+    """API endpoint for dashboard metrics"""
+    try:
+        patient = get_object_or_404(Patient, id=patient_id)
+        logger.info(f"Fetching dashboard metrics for patient {patient_id}")
+        
+        # Get date range from request
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+        
+        # Build base querysets
+        visits_query = Visits.objects.filter(patient=patient)
+        cmp_labs_query = CmpLabs.objects.filter(patient=patient)
+        cbc_labs_query = CbcLabs.objects.filter(patient=patient)
+        vitals_query = Vitals.objects.filter(patient=patient)
+        measurements_query = Measurements.objects.filter(patient=patient)
+        
+        # Apply date filters if provided
+        if start_date and end_date:
+            try:
+                start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
+                logger.info(f"Using date range: {start_date} to {end_date}")
+                
+                visits_query = visits_query.filter(date__range=[start_date, end_date])
+                cmp_labs_query = cmp_labs_query.filter(date__range=[start_date, end_date])
+                cbc_labs_query = cbc_labs_query.filter(date__range=[start_date, end_date])
+                vitals_query = vitals_query.filter(date__range=[start_date, end_date])
+                measurements_query = measurements_query.filter(date__range=[start_date, end_date])
+            except ValueError as e:
+                logger.error(f"Invalid date format: {str(e)}")
+        
+        # Get latest records
+        latest_vitals = vitals_query.order_by('-date').first()
+        latest_cmp = cmp_labs_query.order_by('-date').first()
+        latest_cbc = cbc_labs_query.order_by('-date').first()
+        latest_measurements = measurements_query.order_by('-date').first()
+        
+        # Get metrics
+        metrics = {
+            'total_visits': visits_query.count(),
+            'active_medications': Medications.objects.filter(
+                patient=patient,
+                dc_date__isnull=True
+            ).count(),
+            'recent_labs': cmp_labs_query.count() + cbc_labs_query.count(),
+            'pending_tasks': RecordRequestLog.objects.filter(
+                patient=patient,
+                status='pending'
+            ).count()
+        }
+        
+        # Get latest values for display
+        latest_values = {
+            'bp': latest_vitals.blood_pressure if latest_vitals else '--/--',
+            'hr': str(latest_vitals.pulse) if latest_vitals else '--',
+            'glucose': latest_cmp.glucose if latest_cmp else None,
+            'wbc': latest_cbc.wbc if latest_cbc else None,
+            'weight': latest_measurements.weight if latest_measurements else None,
+            'bmi': None  # Will calculate if we have height and weight
+        }
+        
+        # Calculate BMI if we have both height and weight
+        if latest_measurements and patient.height_inches:
+            weight_kg = latest_measurements.weight * 0.453592  # Convert lbs to kg
+            height_m = patient.height_inches * 0.0254  # Convert inches to meters
+            if height_m > 0:
+                latest_values['bmi'] = round(weight_kg / (height_m * height_m), 1)
+        
+        # Get vitals data for chart
+        vitals_data = []
+        for vital in vitals_query.order_by('date'):
+            try:
+                systolic, diastolic = map(int, vital.blood_pressure.split('/'))
+                vitals_data.append({
+                    'date': vital.date.isoformat(),
+                    'systolic': systolic,
+                    'diastolic': diastolic,
+                    'heart_rate': vital.pulse
+                })
+            except (ValueError, AttributeError) as e:
+                logger.error(f"Error parsing vital signs: {str(e)}")
+                continue
+        
+        # Get recent activities
+        activities = AuditTrail.objects.filter(
+            patient=patient
+        ).order_by('-timestamp')[:10]
+        
+        activities_data = [{
+            'timestamp': activity.timestamp.isoformat(),
+            'action': activity.action,
+            'description': activity.record_type
+        } for activity in activities]
+        
+        # Generate alerts
+        alerts = []
+        
+        # Check for abnormal vitals
+        if latest_vitals:
+            try:
+                systolic, diastolic = map(int, latest_vitals.blood_pressure.split('/'))
+                
+                if systolic > 180 or diastolic > 110:
+                    alerts.append({
+                        'severity': 'high',
+                        'message': f'High blood pressure: {latest_vitals.blood_pressure}'
+                    })
+                elif systolic < 90 or diastolic < 60:
+                    alerts.append({
+                        'severity': 'high',
+                        'message': f'Low blood pressure: {latest_vitals.blood_pressure}'
+                    })
+                    
+                if latest_vitals.temperature > 38.3:  # >101°F
+                    alerts.append({
+                        'severity': 'high',
+                        'message': f'High temperature: {latest_vitals.temperature}°C'
+                    })
+                    
+                if latest_vitals.spo2 < 95:
+                    alerts.append({
+                        'severity': 'medium',
+                        'message': f'Low SpO2: {latest_vitals.spo2}%'
+                    })
+            except (ValueError, AttributeError) as e:
+                logger.error(f"Error checking vital signs alerts: {str(e)}")
+        
+        # Check for abnormal labs
+        if latest_cbc:
+            if latest_cbc.wbc > 11.0 or latest_cbc.wbc < 4.0:
+                alerts.append({
+                    'severity': 'medium',
+                    'message': f'Abnormal WBC: {latest_cbc.wbc} K/µL'
+                })
+        
+        if latest_cmp:
+            if latest_cmp.glucose > 200:
+                alerts.append({
+                    'severity': 'medium',
+                    'message': f'High glucose: {latest_cmp.glucose} mg/dL'
+                })
+        
+        response_data = {
+            'success': True,
+            'metrics': metrics,
+            'latest_values': latest_values,
+            'vitals_data': vitals_data,
+            'activities': activities_data,
+            'alerts': alerts
+        }
+        
+        logger.info(f"Successfully fetched dashboard data for patient {patient_id}")
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching dashboard metrics: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'error': str(e),
+            'success': False
+        }, status=500)

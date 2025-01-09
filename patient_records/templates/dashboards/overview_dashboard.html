@@ -1,0 +1,76 @@
+{% extends 'dashboards/base_dashboard.html' %}
+{% load static %}
+
+{% block dashboard_title %}Patient Overview Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-grid">
+    <!-- Key Metrics Section -->
+    <section class="dashboard-card metrics-card">
+        <h2>Key Metrics</h2>
+        <div class="metrics-grid">
+            <div class="metric">
+                <span class="metric-label">Total Visits</span>
+                <span class="metric-value" data-metric="total_visits">{{ total_visits }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Active Medications</span>
+                <span class="metric-value" data-metric="active_medications">{{ active_medications }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Recent Labs</span>
+                <span class="metric-value" data-metric="recent_labs">{{ recent_labs }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Pending Tasks</span>
+                <span class="metric-value" data-metric="pending_tasks">{{ pending_tasks }}</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Vitals Chart Section -->
+    <section class="dashboard-card chart-card">
+        <h2>Recent Vital Signs</h2>
+        <div class="chart-container">
+            <canvas id="vitalsChart"></canvas>
+        </div>
+    </section>
+
+    <!-- Recent Activity Section -->
+    <section class="dashboard-card activity-card">
+        <h2>Recent Activity</h2>
+        <div class="activity-list">
+            {% for activity in recent_activities %}
+            <div class="activity-item">
+                <span class="activity-time">{{ activity.timestamp|date:"M d, Y H:i" }}</span>
+                <span class="activity-type">{{ activity.action }}</span>
+                <span class="activity-description">{{ activity.description }}</span>
+            </div>
+            {% empty %}
+            <p>No recent activity</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Alerts Section -->
+    <section class="dashboard-card alerts-card">
+        <h2>Alerts</h2>
+        <div class="alerts-list">
+            {% for alert in alerts %}
+            <div class="alert-item alert-{{ alert.severity }}">
+                <i class="fas fa-exclamation-circle"></i>
+                <span class="alert-message">{{ alert.message }}</span>
+            </div>
+            {% empty %}
+            <p>No active alerts</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block dashboard_js %}
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
+<script src="{% static 'js/dashboards/overview.js' %}"></script>
+{% endblock %} 
