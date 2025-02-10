@@ -12,9 +12,18 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+import sys
+
+print("Settings file location:", __file__)
+print("Current working directory:", os.getcwd())
+print("Python path:", sys.path)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+print("BASE_DIR:", BASE_DIR)
+
+# Add the project root to the Python path
+sys.path.insert(0, str(BASE_DIR))
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = BASE_DIR / 'logs'
@@ -28,9 +37,31 @@ SECRET_KEY = 'django-insecure-%p2466)5(%m8u#q_r!^1_u9grk_75s233z=$kulw@@v&jwg^s)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+print("DEBUG value set to:", DEBUG)
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.loca.lt','*','https://dirty-moments-cover.loca.lt']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.loca.lt']
 
+# Security settings - consolidated
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_HOST = None
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'DENY'
+CSRF_COOKIE_SECURE = False  # Set to False for local development
+SESSION_COOKIE_SECURE = False  # Set to False for local development
+
+# Development-specific settings
+if DEBUG:
+    INTERNAL_IPS = ['127.0.0.1']
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+else:
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
 
 # Application definition
 
@@ -45,7 +76,43 @@ INSTALLED_APPS = [
     'csp',
 ]
 
+# Import cache settings - using a try/except to handle potential import issues
+try:
+    from patient_management.settings.caching import CACHES, CACHE_KEYS, CACHE_TIMEOUTS, CACHE_VERSION
+except ImportError as e:
+    print(f"Warning: Could not import cache settings: {e}")
+    # Fallback to basic local memory cache
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
+    CACHE_KEYS = {}
+    CACHE_TIMEOUTS = {}
+    CACHE_VERSION = 1
+
+# Session configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+# Existing session settings
+SESSION_COOKIE_AGE = 3600  # Session expires after 1 hour (in seconds)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+
+# Cache configuration for static lookups
+STATIC_CACHE_TIMEOUT = 3600  # 1 hour
+STATIC_CACHE_KEY_PREFIX = 'static'
+
+# Cache middleware settings
+USE_CACHE_MIDDLEWARE = True
+CACHE_MIDDLEWARE_SECONDS = 300
+CACHE_MIDDLEWARE_KEY_PREFIX = 'patient_mgmt'
+
+# Add cache middleware to the beginning of MIDDLEWARE
 MIDDLEWARE = [
+    'django.middleware.cache.UpdateCacheMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'patient_records.middleware.localtunnel.LocaltunnelBypassMiddleware',
@@ -56,6 +123,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'patient_records.middleware.json_errors.JSONErrorMiddleware',
+    'django.middleware.cache.FetchFromCacheMiddleware',
 ]
 
 ROOT_URLCONF = 'patient_management.urls'
@@ -142,12 +210,6 @@ LOGIN_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
 LOGOUT_REDIRECT_URL = 'login'
 
-# Optional: If you want to redirect users to login when session expires
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-
-# Add or update these settings
-SESSION_COOKIE_AGE = 3600  # Session expires after 1 hour (in seconds)
-
 # Add these CSP settings
 CSP_DEFAULT_SRC = (
     "'self'",
@@ -177,11 +239,6 @@ CSP_FONT_SRC = ("'self'", "data:")
 # Add these settings for better security while allowing modal functionality
 CSP_INCLUDE_NONCE_IN = ['script-src']
 CSP_EXCLUDE_URL_PREFIXES = ('/admin/',)
-
-# Security settings
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
-X_FRAME_OPTIONS = 'DENY'
 
 STATICFILES_DIRS = [
     BASE_DIR / "patient_records/static",
@@ -251,47 +308,22 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000'
 ]
 
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-# Add after your existing security settings
-SECURE_SSL_REDIRECT = False  # Set to True in production
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_HOST = None
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-
-# Add these timeout settings
-CONN_MAX_AGE = 60  # Keep this reasonable
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = False  # Set to True in production
-
-# Proxy settings
+# Proxy and timeout settings
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-# Add WhiteNoise configuration
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# Add these settings for Localtunnel
-LOCALTUNNEL = {
-    'BYPASS_HEADER': True,  # This will add the bypass header in development
-}
-
-# Timeout settings
 REQUEST_TIMEOUT = 120
 KEEP_ALIVE_TIMEOUT = 120
-
-# Add WebSocket timeout
 WEBSOCKET_TIMEOUT = 120
 
-# Add these settings for better request handling
+# Static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Localtunnel settings
+LOCALTUNNEL = {
+    'BYPASS_HEADER': True,
+}
+
+# Session settings
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-CSRF_TRUSTED_ORIGINS = [
-    'https://*.loca.lt',
-    'http://*.loca.lt',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000'
-]
+
+# End of settings file

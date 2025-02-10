@@ -1,0 +1,81 @@
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+}
+
+.overview-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    min-height: 200px;
+    display: block !important;
+    visibility: visible !important;
+}
+
+.overview-card h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 0.5rem;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+}
+
+.overview-card h3 i {
+    margin-right: 0.5rem;
+    color: #3498db;
+}
+
+.card-content {
+    font-size: 0.95rem;
+    padding: 0.5rem;
+    display: block !important;
+    visibility: visible !important;
+}
+
+.card-content p {
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+    display: block !important;
+}
+
+.diagnosis-list, .medication-list, .activity-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.diagnosis-list li, .medication-list li, .activity-list li {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.text-muted {
+    color: #6c757d;
+}
+
+.activity-type {
+    font-weight: 500;
+}
+
+/* Debug section styling */
+.debug-section {
+    background: #f8f9fa;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.debug-section pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+} 

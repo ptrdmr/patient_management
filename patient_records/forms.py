@@ -1,10 +1,32 @@
+"""Forms for patient records app."""
+
 from django import forms
-from .models import *
-import datetime
-from .widgets import ICDCodeWidget, PhoneNumberWidget
-from django.utils import timezone
 from django.forms import ModelForm
+from django.utils import timezone
+import datetime
 import re
+
+from .widgets import ICDCodeWidget, PhoneNumberWidget
+from .models import (
+    Patient,
+    Provider,
+    Vitals,
+    CmpLabs,
+    CbcLabs,
+    ClinicalNotes,
+    PatientNote,
+    NoteTag,
+    NoteAttachment,
+    Measurements,
+    Symptoms,
+    Imaging,
+    Adls,
+    Occurrences,
+    Diagnosis,
+    Visits,
+    Medications,
+    RecordRequestLog
+)
 
 # Move these base classes to the top of the file
 class BaseForm(forms.ModelForm):
@@ -436,6 +458,17 @@ class MedicationsForm(SectionedForm):
         
         # Set today's date for date_prescribed
         self.fields['date_prescribed'].initial = datetime.date.today()
+
+    def clean(self):
+        """Clean and validate form data."""
+        cleaned_data = super().clean()
+        date_prescribed = cleaned_data.get('date_prescribed')
+        dc_date = cleaned_data.get('dc_date')
+
+        if date_prescribed and dc_date and dc_date < date_prescribed:
+            self.add_error('dc_date', 'Discontinue date cannot be earlier than the prescribed date.')
+
+        return cleaned_data
 
     def get_sections(self):
         return [

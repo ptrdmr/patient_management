@@ -1,0 +1,41 @@
+.tab-container {
+    margin-top: var(--spacing-xl);
+}
+
+.tab-nav {
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.tab {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid transparent;
+    background: none;
+    cursor: pointer;
+    color: var(--color-dark);
+    border-radius: 0.25rem 0.25rem 0 0;
+    text-decoration: none;
+}
+
+.tab:hover {
+    border-color: var(--border-color);
+    border-bottom-color: transparent;
+    text-decoration: none;
+}
+
+.tab.active {
+    border-color: var(--border-color);
+    border-bottom-color: white;
+    margin-bottom: -1px;
+}
+
+.tab-content {
+    display: block;
+}
+
+/* Style for the form within tabs */
+.lab-form {
+    padding: var(--spacing-md);
+}

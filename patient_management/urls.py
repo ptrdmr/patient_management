@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from patient_records.views import CustomLoginView, custom_logout
 from django.shortcuts import redirect
+from django.conf import settings
 
 def redirect_to_login(request):
     return redirect('login')
@@ -30,3 +31,13 @@ urlpatterns = [
     path('logout/', custom_logout, name='logout'),
     path('', include('patient_records.urls')),
 ]
+
+# Add Debug Toolbar URLs in development
+if settings.DEBUG:
+    try:
+        import debug_toolbar
+        urlpatterns.append(
+            path('__debug__/', include(debug_toolbar.urls))
+        )
+    except ImportError:
+        pass

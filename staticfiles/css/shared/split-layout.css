@@ -1,0 +1,85 @@
+.split-layout {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 2rem;
+    height: calc(100vh - 120px);
+}
+
+.main-content {
+    overflow-y: auto;
+    padding-right: 1rem;
+}
+
+.notes-panel {
+    border-left: 1px solid var(--border-color);
+    padding-left: 1rem;
+    overflow-y: auto;
+}
+
+.notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notes-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.note-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.note-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.note-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.category-tag {
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+}
+
+.category-tag.clinical {
+    background: var(--clinical-light);
+    color: var(--clinical);
+}
+
+.category-tag.medications {
+    background: var(--medications-light);
+    color: var(--medications);
+}
+
+.category-tag.labs {
+    background: var(--labs-light);
+    color: var(--labs);
+}
+
+.category-tag.history {
+    background: var(--history-light);
+    color: var(--history);
+}
+
+.timestamp {
+    color: var(--text-muted);
+} 

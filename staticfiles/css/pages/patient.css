@@ -1,0 +1,115 @@
+.patient-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.patient-info h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 500;
+}
+
+.patient-meta {
+    margin-top: 8px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.patient-meta span {
+    margin-right: 20px;
+}
+
+.patient-actions .dropdown-menu {
+    padding: 8px 0;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.patient-actions .dropdown-item {
+    padding: 8px 16px;
+    font-size: 14px;
+    color: #212529;
+}
+
+.patient-actions .dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.patient-actions .dropdown-item i {
+    width: 20px;
+    margin-right: 8px;
+    color: #6c757d;
+}
+
+.patient-actions .dropdown-item:hover i {
+    color: #0d6efd;
+}
+
+.content-wrapper {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+}
+
+.main-content {
+    flex: 1;
+}
+
+.notes-sidebar {
+    width: 300px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.date {
+    min-width: 120px;
+    display: inline-block;
+}
+
+.pagination-info {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* Tab Navigation Styling */
+.tab-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+/* Tab Categories */
+.tab::before {
+    content: '';
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.tab-category-summary::before { background-color: var(--color-primary); }
+.tab-category-clinical::before { background-color: var(--color-success); }
+.tab-category-labs::before { background-color: var(--color-info); }
+.tab-category-medical::before { background-color: var(--color-warning); }
+.tab-category-additional::before { background-color: var(--color-secondary); }
+.tab-category-history::before { background-color: var(--color-muted); }
+
+/* Visual separation between categories */
+.tab + .tab-category-clinical,
+.tab + .tab-category-labs,
+.tab + .tab-category-medical,
+.tab + .tab-category-additional,
+.tab + .tab-category-history {
+    margin-left: 1rem;
+    padding-left: 1rem;
+    border-left: 1px solid var(--border-color);
+}

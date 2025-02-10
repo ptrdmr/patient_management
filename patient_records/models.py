@@ -1,3 +1,76 @@
+"""
+Patient records models.
+
+This module provides backward compatibility by exposing all models from the new modular structure.
+New code should import directly from the models package instead.
+"""
+
+from .models import (
+    # Base models
+    BaseModel,
+    BasePatientModel,
+    BaseReadModel,
+
+    # Patient models
+    Patient,
+    Provider,
+
+    # Clinical models
+    Vitals,
+    CmpLabs,
+    CbcLabs,
+    ClinicalNotes,
+    PatientNote,
+    NoteTag,
+    NoteAttachment,
+    Measurements,
+    Symptoms,
+    Imaging,
+    Adls,
+    Occurrences,
+    Diagnosis,
+    Visits,
+    Medications,
+
+    # Audit models
+    EventStore,
+    AuditTrail,
+    RecordRequestLog
+)
+
+__all__ = [
+    # Base models
+    'BaseModel',
+    'BasePatientModel',
+    'BaseReadModel',
+
+    # Patient models
+    'Patient',
+    'Provider',
+
+    # Clinical models
+    'Vitals',
+    'CmpLabs',
+    'CbcLabs',
+    'ClinicalNotes',
+    'PatientNote',
+    'NoteTag',
+    'NoteAttachment',
+    'Measurements',
+    'Symptoms',
+    'Imaging',
+    'Adls',
+    'Occurrences',
+    'Diagnosis',
+    'Visits',
+    'Medications',
+
+    # Audit models
+    'EventStore',
+    'AuditTrail',
+    'RecordRequestLog'
+]
+
 from django.db import models
 from django.contrib.auth.models import User
 import datetime
@@ -306,93 +379,6 @@ class Visits(models.Model):
     def __str__(self):
         return f"{self.visit_type} - {self.date}"
 
-class Vitals(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    date = models.DateField()
-    blood_pressure = models.CharField(max_length=20)
-    temperature = models.FloatField()
-    spo2 = models.FloatField()
-    pulse = models.IntegerField()
-    respirations = models.IntegerField()
-    supp_o2 = models.BooleanField(default=False)
-    pain = models.IntegerField()
-    source = models.CharField(max_length=100)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name_plural = "vitals"
-        ordering = ['-date']
-        indexes = [
-            models.Index(fields=['patient', '-date'])
-        ]
-
-    def __str__(self):
-        return f"Vitals - {self.date}"
-
-class CmpLabs(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    date = models.DateField()
-    sodium = models.DecimalField(max_digits=5, decimal_places=2)
-    potassium = models.DecimalField(max_digits=5, decimal_places=2)
-    chloride = models.DecimalField(max_digits=5, decimal_places=2)
-    co2 = models.DecimalField(max_digits=5, decimal_places=2)
-    glucose = models.DecimalField(max_digits=5, decimal_places=2)
-    bun = models.DecimalField(max_digits=5, decimal_places=2)
-    creatinine = models.DecimalField(max_digits=5, decimal_places=2)
-    calcium = models.DecimalField(max_digits=5, decimal_places=2)
-    protein = models.DecimalField(max_digits=5, decimal_places=2)
-    albumin = models.DecimalField(max_digits=5, decimal_places=2)
-    bilirubin = models.DecimalField(max_digits=5, decimal_places=2)
-    gfr = models.DecimalField(max_digits=5, decimal_places=2)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "CMP Lab"
-        verbose_name_plural = "CMP Labs"
-        ordering = ['-date']
-        indexes = [
-            models.Index(fields=['patient', '-date'])
-        ]
-
-    def __str__(self):
-        return f"CMP Labs - {self.patient} - {self.date}"
-
-class CbcLabs(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    date = models.DateField()
-    rbc = models.DecimalField(max_digits=5, decimal_places=2)
-    wbc = models.DecimalField(max_digits=5, decimal_places=2)
-    hemoglobin = models.DecimalField(max_digits=5, decimal_places=2)
-    hematocrit = models.DecimalField(max_digits=5, decimal_places=2)
-    mcv = models.DecimalField(max_digits=5, decimal_places=2)
-    mchc = models.DecimalField(max_digits=5, decimal_places=2)
-    rdw = models.DecimalField(max_digits=5, decimal_places=2)
-    platelets = models.DecimalField(max_digits=7, decimal_places=2)
-    mch = models.DecimalField(max_digits=5, decimal_places=2)
-    neutrophils = models.DecimalField(max_digits=5, decimal_places=2)
-    lymphocytes = models.DecimalField(max_digits=5, decimal_places=2)
-    monocytes = models.DecimalField(max_digits=5, decimal_places=2)
-    eosinophils = models.DecimalField(max_digits=5, decimal_places=2)
-    basophils = models.DecimalField(max_digits=5, decimal_places=2)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "CBC Lab"
-        verbose_name_plural = "CBC Labs"
-        ordering = ['-date']
-        indexes = [
-            models.Index(fields=['patient', '-date'])
-        ]
-
-    def __str__(self):
-        return f"CBC Labs - {self.patient} - {self.date}"
-
 class Symptoms(models.Model):
     SEVERITY_CHOICES = [
         (1, '1 - Minimal'),
@@ -498,7 +484,6 @@ class Medications(models.Model):
     frequency = models.CharField(max_length=100)
     route = models.CharField(max_length=100)
     notes = models.TextField(blank=True, null=True)
-    # Add the new fields
     prn = models.BooleanField(default=False, verbose_name="PRN (As Needed)")
     dc_date = models.DateField(null=True, blank=True, verbose_name="Discontinue Date")
 
@@ -507,6 +492,19 @@ class Medications(models.Model):
             models.Index(fields=['-date_prescribed']),
             models.Index(fields=['patient', '-date_prescribed']),
         ]
+        ordering = ['-date_prescribed']
+
+    def clean(self):
+        """Validate the model data."""
+        if self.dc_date and self.dc_date < self.date_prescribed:
+            raise ValidationError({
+                'dc_date': 'Discontinue date cannot be earlier than the prescribed date.'
+            })
+
+    def save(self, *args, **kwargs):
+        """Override save to ensure validation is called."""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.drug} - {self.dose}"

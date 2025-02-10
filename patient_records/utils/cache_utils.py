@@ -7,16 +7,18 @@ logger = logging.getLogger(__name__)
 
 def get_static_cache_key(key_type: str, identifier: str = '') -> str:
     """Generate a cache key for static data"""
-    return f"{settings.STATIC_CACHE_KEY_PREFIX}:{key_type}:{identifier}"
+    prefix = getattr(settings, 'STATIC_CACHE_KEY_PREFIX', 'static')
+    return f"{prefix}:{key_type}:{identifier}"
 
 def cache_static_lookup(key_type: str, identifier: str, data: Any) -> None:
     """Cache static lookup data with the configured timeout"""
     cache_key = get_static_cache_key(key_type, identifier)
+    timeout = getattr(settings, 'STATIC_CACHE_TIMEOUT', 3600)  # Default 1 hour
     try:
         cache.set(
             cache_key,
             data,
-            timeout=settings.STATIC_CACHE_TIMEOUT
+            timeout=timeout
         )
         logger.debug(f"Cached static lookup: {cache_key}")
     except Exception as e:

@@ -5,6 +5,8 @@ from ..models import EventStore
 from .handlers import PatientEventHandler, ClinicalEventHandler, LabResultEventHandler
 import uuid
 import logging
+from django.core.serializers.json import DjangoJSONEncoder
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +26,40 @@ class EventStoreService:
         # Use version 5 UUID with DNS namespace and the ID as the name
         return uuid.uuid5(uuid.NAMESPACE_DNS, f"patient-{id_value}")
 
+    def _dispatch_event(self, event: EventStore) -> None:
+        """
+        Dispatch event to appropriate handler
+        """
+        handler = self.handlers.get(event.aggregate_type)
+        if handler:
+            try:
+                handler.handle(event.event_type, event.event_data, {
+                    'aggregate_id': str(event.aggregate_id),
+                    'version': event.version,
+                    'timestamp': event.timestamp.isoformat()
+                })
+            except Exception as e:
+                logger.error(f"Error dispatching event: {str(e)}")
+                raise
+
     @transaction.atomic
     def append_event(self, aggregate_id: str, aggregate_type: str, event_type: str, event_data: dict) -> None:
         """
         Append a new event to the event store
         """
         try:
+            # Convert UUIDs to strings in event_data
+            event_data = json.loads(json.dumps(event_data, cls=DjangoJSONEncoder))
+            
             # Validate UUID format
             uuid_obj = uuid.UUID(aggregate_id)
+            
+            # Get the next version number for this aggregate using select_for_update()
+            latest_event = EventStore.objects.filter(
+                aggregate_id=str(uuid_obj)
+            ).select_for_update().order_by('-version').first()
+            
+            next_version = 1 if latest_event is None else latest_event.version + 1
             
             # Create and save the event
             event = EventStore.objects.create(
@@ -39,11 +67,14 @@ class EventStoreService:
                 aggregate_type=aggregate_type,
                 event_type=event_type,
                 event_data=event_data,
-                timestamp=timezone.now()
+                timestamp=timezone.now(),
+                version=next_version
             )
             
             # Dispatch event to handlers
             self._dispatch_event(event)
+            
+            return event
             
         except ValueError as e:
             logger.error(f"Invalid UUID format for aggregate_id: {aggregate_id}")

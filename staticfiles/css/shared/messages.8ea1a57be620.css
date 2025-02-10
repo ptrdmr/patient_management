@@ -1,0 +1,31 @@
+.messages {
+    list-style: none;
+    padding: 0;
+    margin: var(--spacing-md) 0;
+}
+
+.messages li {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    border-radius: 4px;
+}
+
+.messages .success {
+    background-color: var(--color-success);
+    color: white;
+}
+
+.messages .error {
+    background-color: var(--color-danger);
+    color: white;
+}
+
+.messages .info {
+    background-color: var(--color-info);
+    color: white;
+}
+
+.messages .warning {
+    background-color: var(--color-warning);
+    color: var(--color-dark);
+}

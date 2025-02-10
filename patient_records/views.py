@@ -29,7 +29,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 import json
 from django.db import transaction
 import decimal
-from django.db.models import Model, Q
+from django.db.models import Model, Q, Prefetch
 from typing import Optional, Dict, Any
 from django.views.decorators.http import require_http_methods
 from .forms import VisitsForm, AdlsForm, ImagingForm, RecordRequestLogForm
@@ -37,6 +37,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from .event_sourcing.event_store import EventStoreService
 from .models import ClinicalReadModel
+from django.core.cache import cache
+import uuid
 
 # Initialize the logger for this module
 logger = logging.getLogger('patient_records')  # Note: use the specific logger name we defined in settings.py
@@ -62,6 +64,8 @@ def serialize_model_data(record_dict: Dict) -> Dict:
             serialized[key] = float(value)
         elif isinstance(value, Model):  # Handle foreign keys
             serialized[key] = str(value.pk)
+        elif isinstance(value, uuid.UUID):  # Handle UUIDs
+            serialized[key] = str(value)
         else:
             serialized[key] = value
     return serialized
@@ -71,7 +75,8 @@ def create_audit_trail(
     action: str,
     user: User,
     previous_values: Optional[Dict[str, Any]] = None,
-    new_values: Optional[Dict[str, Any]] = None
+    new_values: Optional[Dict[str, Any]] = None,
+    record_type: Optional[str] = None
 ) -> AuditTrail:
     """
     Create an audit trail entry with enhanced logging
@@ -84,7 +89,7 @@ def create_audit_trail(
     # DO NOT REMOVE - Critical implementation notes
     """
     try:
-        model_name = record.__class__.__name__.upper()
+        model_name = record_type or record.__class__.__name__.upper()
         logger.info(f"Creating audit trail - Action: {action}, Model: {model_name}, Record ID: {record.id}")
         
         # Determine identifier
@@ -140,10 +145,12 @@ def add_patient(request):
             patient.date = datetime.date.today()  # Set the date field
             patient.save()  # Now save to DB
             
-            AuditTrail.objects.create(
-                patient=patient, 
-                action='CREATE', 
-                user=request.user
+            # Create audit trail with proper record type
+            create_audit_trail(
+                record=patient,
+                action='CREATE',
+                user=request.user,
+                new_values=model_to_dict(patient)
             )
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -179,21 +186,15 @@ def add_patient(request):
 @login_required
 def patient_list(request):
     """View list of all patients with advanced search capabilities"""
-    print("\n=== PATIENT LIST DEBUG ===")
-    print(f"Request GET params: {request.GET}")
-    
     search_form = PatientSearchForm(request.GET or None)
     patients = Patient.objects.all().order_by('-updated_at')  # Default sort
     
     if search_form.is_valid():
-        print(f"Form is valid")
         active_filters = search_form.get_active_filters()
-        print(f"Active filters: {active_filters}")
         
         # Basic search
         if 'search' in active_filters:
             search = active_filters['search']
-            print(f"Applying search filter: {search}")
             search_terms = search.split()
             query = Q()
             for term in search_terms:
@@ -205,64 +206,45 @@ def patient_list(request):
                 )
                 query |= term_query
             patients = patients.filter(query)
-            print(f"After search filter - count: {patients.count()}")
 
         # Patient ID search
         if 'patient_id' in active_filters:
             patient_id = active_filters['patient_id']
-            print(f"Applying patient ID filter: {patient_id}")
             patients = patients.filter(patient_number__icontains=patient_id)
-            print(f"After patient ID filter - count: {patients.count()}")
 
         # Gender filter
         if 'gender' in active_filters:
             gender = active_filters['gender']
-            print(f"Applying gender filter: {gender}")
             patients = patients.filter(gender=gender)
-            print(f"After gender filter - count: {patients.count()}")
 
         # Date range filter
         if 'date_added_from' in active_filters:
             from_date = active_filters['date_added_from']
-            print(f"Applying date_added_from filter: {from_date}")
             from_datetime = timezone.make_aware(datetime.datetime.combine(from_date, datetime.time.min))
             patients = patients.filter(created_at__gte=from_datetime)
-            print(f"After date_added_from filter - count: {patients.count()}")
             
         if 'date_added_to' in active_filters:
             to_date = active_filters['date_added_to']
-            print(f"Applying date_added_to filter: {to_date}")
             to_datetime = timezone.make_aware(datetime.datetime.combine(to_date, datetime.time.max))
             patients = patients.filter(created_at__lte=to_datetime)
-            print(f"After date_added_to filter - count: {patients.count()}")
 
         # Age range filter
         today = timezone.now().date()
         
         if 'age_min' in active_filters:
             age_min = active_filters['age_min']
-            print(f"Applying age_min filter: {age_min}")
             max_birth_date = today - timezone.timedelta(days=age_min * 365)
             patients = patients.filter(date_of_birth__lte=max_birth_date)
-            print(f"After age_min filter - count: {patients.count()}")
             
         if 'age_max' in active_filters:
             age_max = active_filters['age_max']
-            print(f"Applying age_max filter: {age_max}")
             min_birth_date = today - timezone.timedelta(days=age_max * 365)
             patients = patients.filter(date_of_birth__gte=min_birth_date)
-            print(f"After age_max filter - count: {patients.count()}")
 
         # Sort handling
         if 'sort_by' in active_filters:
             sort_by = active_filters['sort_by']
-            print(f"Applying sort: {sort_by}")
             patients = patients.order_by(sort_by)
-    else:
-        print(f"Form validation errors: {search_form.errors}")
-
-    print(f"Final query: {patients.query}")
-    print(f"Final count: {patients.count()}")
 
     # Pagination
     paginator = Paginator(patients, 10)  # Show 10 patients per page
@@ -296,68 +278,44 @@ def patient_list(request):
 
 @login_required
 def patient_detail(request, patient_id):
+    """
+    Display detailed patient information with optimized queries and caching
+    """
     try:
-        # Get patient with all fields
-        patient = Patient.objects.get(id=patient_id)
-        print("\n=== PATIENT DATA ===")
-        print(f"Patient ID: {patient.id}")
-        print(f"Name: {patient.first_name} {patient.last_name}")
-        print(f"DOB: {patient.date_of_birth}")
-        print(f"Gender: {patient.gender}")
-        print(f"Patient Number: {patient.patient_number}")
+        cache_key = f'patient_detail:{patient_id}'
+        cached_response = cache.get(cache_key)
         
-        # Get latest vitals
+        if cached_response is not None and not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return cached_response
+            
+        # Get patient with optimized queries
+        patient = Patient.objects.select_related().get(id=patient_id)
+        
+        # Get all related data in optimized queries
         latest_vitals = Vitals.objects.filter(
             patient=patient
-        ).order_by('-date').first()
-        print("\n=== LATEST VITALS ===")
-        if latest_vitals:
-            print(f"Vitals ID: {latest_vitals.id}")
-            print(f"Date: {latest_vitals.date}")
-            print(f"BP: {latest_vitals.blood_pressure}")
-            print(f"Pulse: {latest_vitals.pulse}")
-            print(f"Temp: {latest_vitals.temperature}")
-            print(f"SPO2: {latest_vitals.spo2}")
-        else:
-            print("No vitals found")
-
-        # Get diagnoses
+        ).select_related().order_by('-date').first()
+        
         active_diagnoses = Diagnosis.objects.filter(
             patient=patient
-        ).order_by('-date')
-        print("\n=== ACTIVE DIAGNOSES ===")
-        print(f"Count: {active_diagnoses.count()}")
-        if active_diagnoses.exists():
-            first_dx = active_diagnoses.first()
-            print(f"First Diagnosis: {first_dx.diagnosis}")
-            print(f"ICD Code: {first_dx.icd_code}")
-            print(f"Date: {first_dx.date}")
-
-        # Get current medications
+        ).select_related('provider').order_by('-date')
+        
         current_medications = Medications.objects.filter(
             patient=patient
         ).filter(
-            Q(dc_date__isnull=True) | Q(dc_date__gt=datetime.date.today())
-        ).order_by('-date_prescribed')
-        print("\n=== CURRENT MEDICATIONS ===")
-        print(f"Count: {current_medications.count()}")
-        if current_medications.exists():
-            first_med = current_medications.first()
-            print(f"First Med: {first_med.drug}")
-            print(f"Dose: {first_med.dose}")
-            print(f"Route: {first_med.route}")
-            print(f"Frequency: {first_med.frequency}")
-
-        # Get recent activities
+            Q(dc_date__isnull=True) | Q(dc_date__gt=timezone.now().date())
+        ).select_related().order_by('-date_prescribed')
+        
         recent_activities = AuditTrail.objects.filter(
             patient=patient
-        ).order_by('-timestamp')[:5]
-        print("\n=== RECENT ACTIVITIES ===")
-        print(f"Count: {len(list(recent_activities))}")
-        if recent_activities.exists():
-            first_activity = recent_activities.first()
-            print(f"First Activity: {first_activity.action} {first_activity.record_type}")
-            print(f"Timestamp: {first_activity.timestamp}")
+        ).select_related('user').order_by('-timestamp')[:5]
+        
+        notes = PatientNote.objects.filter(
+            patient=patient
+        ).select_related('created_by').prefetch_related(
+            'tags',
+            'attachments'
+        ).order_by('-is_pinned', '-created_at')
         
         # Create context with all required data
         context = {
@@ -371,16 +329,8 @@ def patient_detail(request, patient_id):
                 {'label': f"{patient.first_name} {patient.last_name}", 'url': None}
             ],
             'note_categories': PatientNote.NOTE_CATEGORIES,
-            'notes': PatientNote.objects.filter(patient=patient).order_by('-is_pinned', '-created_at')
+            'notes': notes
         }
-
-        # Print final context data
-        print("\n=== CONTEXT VERIFICATION ===")
-        print(f"Patient in context: {bool(context['patient'])}")
-        print(f"Latest vitals in context: {bool(context['latest_vitals'])}")
-        print(f"Active diagnoses in context: {bool(context['active_diagnoses'])}")
-        print(f"Current medications in context: {bool(context['current_medications'])}")
-        print(f"Recent activities in context: {bool(context['recent_activities'])}")
 
         # Handle AJAX tab loading
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -388,13 +338,17 @@ def patient_detail(request, patient_id):
             template = f'patient_records/partials/_{tab}.html'
             return render(request, template, context)
 
-        return render(request, 'patient_records/patient_detail.html', context)
+        response = render(request, 'patient_records/patient_detail.html', context)
+        
+        # Cache the response for 2 minutes
+        cache.set(cache_key, response, 120)  # 120 seconds = 2 minutes
+        return response
         
     except Patient.DoesNotExist:
         messages.error(request, 'Patient not found')
         return redirect('patient_list')
     except Exception as e:
-        print(f"Error in patient_detail view: {str(e)}")
+        logger.error(f"Error in patient_detail view: {str(e)}", exc_info=True)
         messages.error(request, 'An error occurred while loading patient details')
         return redirect('patient_list')
 
@@ -517,13 +471,15 @@ def add_cmp_labs(request, patient_id):
         if form.is_valid():
             lab = form.save(commit=False)
             lab.patient = patient
+            lab.modified_by = request.user
             lab.save()
             
             create_audit_trail(
                 record=lab,
                 action='CREATE',
                 user=request.user,
-                new_values=model_to_dict(lab)
+                new_values=model_to_dict(lab),
+                record_type='CMP_LAB'
             )
             
             messages.success(request, 'CMP Lab results added successfully!')
@@ -553,13 +509,15 @@ def add_cbc_labs(request, patient_id):
         if form.is_valid():
             lab = form.save(commit=False)
             lab.patient = patient
+            lab.modified_by = request.user
             lab.save()
             
             create_audit_trail(
                 record=lab,
                 action='CREATE',
                 user=request.user,
-                new_values=model_to_dict(lab)
+                new_values=model_to_dict(lab),
+                record_type='CBC_LAB'
             )
             
             messages.success(request, 'CBC Lab results added successfully!')
@@ -592,12 +550,17 @@ def add_medications(request, patient_id):
     
     if request.method == 'POST':
         form = MedicationsForm(request.POST)
-        if form.is_valid():
-            med = form.save(commit=False)
-            med.patient = patient
-            med.save()
-            messages.success(request, 'Medication added successfully!')
-            return redirect('patient_detail', patient_id=patient_id)
+        try:
+            if form.is_valid():
+                med = form.save(commit=False)
+                med.patient = patient
+                med.save()
+                messages.success(request, 'Medication added successfully!')
+                return redirect('patient_detail', patient_id=patient_id)
+        except ValidationError as e:
+            for field, errors in e.message_dict.items():
+                for error in errors:
+                    form.add_error(field, error)
     else:
         form = MedicationsForm(initial={'patient': patient})
     
@@ -1026,23 +989,43 @@ def patient_tab_data(request, patient_id, tab_name):
         }, status=500)
 
 @login_required
-def medications_api(request, patient_id):
-    patient = get_object_or_404(Patient, id=patient_id)
-    page = request.GET.get('page', 1)
-    
-    queryset = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
-    paginator = Paginator(queryset, 20)
-    medications = paginator.get_page(page)
-    
-    context = {
-        'medications': medications,
-        'patient': patient,
-    }
-    
-    return JsonResponse({
-        'html': render_to_string('patient_records/partials/_medications.html', context),
-        'success': True
-    })
+@require_http_methods(["GET"])
+def get_medications(request, patient_id):
+    """Get medications for a patient."""
+    try:
+        # Validate patient ID
+        try:
+            patient_uuid = uuid.UUID(str(patient_id))
+        except ValueError:
+            return JsonResponse({'error': 'Invalid patient ID'}, status=400)
+        
+        # Get patient and medications
+        try:
+            patient = Patient.objects.get(id=patient_uuid)
+        except Patient.DoesNotExist:
+            return JsonResponse({'error': 'Patient not found'}, status=404)
+        
+        medications = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
+        
+        # Serialize medications
+        data = []
+        for med in medications:
+            data.append({
+                'id': str(med.id),
+                'drug': med.drug,
+                'dose': med.dose,
+                'frequency': med.frequency,
+                'route': med.route,
+                'date_prescribed': med.date_prescribed.isoformat(),
+                'dc_date': med.dc_date.isoformat() if med.dc_date else None,
+                'notes': med.notes,
+                'prn': med.prn
+            })
+        
+        return JsonResponse({'medications': data}, encoder=DjangoJSONEncoder)
+    except Exception as e:
+        logger.error(f"Error in get_medications: {str(e)}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)
 
 def patient_history(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)

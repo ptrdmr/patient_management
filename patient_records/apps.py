@@ -6,4 +6,10 @@ class PatientRecordsConfig(AppConfig):
     name = 'patient_records'
 
     def ready(self):
-        import patient_records.signals
+        """Initialize app-specific configurations"""
+        # Import and cache static lookups
+        from .utils.cache_utils import cache_common_lookups
+        cache_common_lookups()
+
+        # Import signals
+        from . import signals

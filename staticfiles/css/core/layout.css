@@ -1,0 +1,25 @@
+/* Core Layout Styles */
+.content {
+    padding: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Header & Navigation */
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Utility Classes */
+.date {
+    min-width: 120px;
+    display: inline-block;
+}
+
+.pagination-info {
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}

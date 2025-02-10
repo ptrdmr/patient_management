@@ -1,0 +1,19 @@
+nav {
+    background-color: #f8f9fa;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+nav a {
+    margin-right: 15px;
+    text-decoration: none;
+    color: #007bff;
+}
+
+.user-nav {
+    float: right;
+}
+
+.user-nav span {
+    margin-right: 15px;
+}

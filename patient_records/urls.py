@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/patients/<uuid:patient_id>/latest-vitals/', views.get_latest_vitals, name='get_latest_vitals'),
     path('api/patients/<uuid:patient_id>/latest-labs/', views.get_latest_labs, name='get_latest_labs'),
     path('api/patients/<uuid:patient_id>/latest-measurements/', views.get_latest_measurements, name='get_latest_measurements'),
+    path('api/patients/<uuid:patient_id>/medications/', views.get_medications, name='medications_api'),
     path('api/patients/<uuid:patient_id>/dashboard-metrics/', views.get_dashboard_metrics, name='get_dashboard_metrics'),
     
     # Tab data
