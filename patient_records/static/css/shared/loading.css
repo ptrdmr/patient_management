@@ -1,13 +1,187 @@
+/* Base Loading Styles */
+.loading-container {
+    position: relative;
+    min-height: 50px;
+}
+
+/* Spinner Sizes */
 .spinner {
     display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid #ffffff;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 2px solid var(--primary-color, #3B82F6);
     border-radius: 50%;
     border-top-color: transparent;
     animation: spin 1s linear infinite;
 }
 
+.spinner--sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 2px;
+}
+
+.spinner--lg {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-width: 3px;
+}
+
+/* Spinner Colors */
+.spinner--light {
+    border-color: rgba(255, 255, 255, 0.75);
+    border-top-color: transparent;
+}
+
+.spinner--primary {
+    border-color: var(--primary-color, #3B82F6);
+    border-top-color: transparent;
+}
+
+.spinner--secondary {
+    border-color: var(--secondary-color, #6B7280);
+    border-top-color: transparent;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-overlay[style*="display: flex"] {
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+/* Loading Text */
+.loading-text {
+    margin-left: 0.75rem;
+    color: var(--text-color, #1F2937);
+    font-size: 0.875rem;
+}
+
+/* Button Loading State */
+.btn.loading {
+    position: relative;
+    pointer-events: none;
+    color: transparent !important;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    top: 50%;
+    left: 50%;
+    margin-left: -0.5rem;
+    margin-top: -0.5rem;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+/* Skeleton Loading */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        rgba(226, 232, 240, 0.6) 25%,
+        rgba(226, 232, 240, 0.9) 37%,
+        rgba(226, 232, 240, 0.6) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-loading 1.4s ease infinite;
+}
+
+.skeleton-text {
+    height: 1em;
+    margin-bottom: 0.5em;
+    border-radius: 3px;
+}
+
+.skeleton-circle {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+}
+
+.skeleton-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+}
+
+.skeleton-button {
+    width: 5rem;
+    height: 2.25rem;
+    border-radius: 0.375rem;
+}
+
+/* Table Loading State */
+.table-loading tbody {
+    position: relative;
+}
+
+.table-loading tbody::after {
+    content: 'Loading...';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.875rem;
+    color: var(--text-color, #1F2937);
+}
+
+/* Animations */
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0 50%;
+    }
+}
+
+/* Loading Progress Bar */
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-bar__fill {
+    height: 100%;
+    background: var(--primary-color, #3B82F6);
+    transition: width 0.3s ease;
+}
+
+/* Loading Dots */
+.loading-dots::after {
+    content: '.';
+    animation: loading-dots 1.5s steps(3, end) infinite;
+}
+
+@keyframes loading-dots {
+    33% { content: '..'; }
+    66% { content: '...'; }
 }

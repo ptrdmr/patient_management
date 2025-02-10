@@ -1,0 +1,215 @@
+
+@startuml Patient Input App Database Schema
+
+' Styling
+skinparam class {
+    BackgroundColor White
+    ArrowColor #2688d4
+    BorderColor #2688d4
+}
+
+' Event Sourcing Models
+class EventStore {
+    + id: UUID <<PK>>
+    + aggregate_id: UUID
+    + aggregate_type: String
+    + event_type: String
+    + event_data: JSON
+    + metadata: JSON
+    + version: Integer
+    + timestamp: DateTime
+}
+
+class PatientReadModel {
+    + id: UUID <<PK>>
+    + current_data: JSON
+    + last_updated: DateTime
+    + version: Integer
+    + snapshot_data: JSON
+    + snapshot_version: Integer
+}
+
+class ClinicalReadModel {
+    + id: UUID <<PK>>
+    + patient_id: UUID
+    + event_type: String
+    + data: JSON
+    + recorded_at: DateTime
+    + schema_version: String
+}
+
+class LabResultsReadModel {
+    + id: UUID <<PK>>
+    + patient_id: UUID
+    + lab_type: String
+    + results: JSON
+    + performed_at: DateTime
+    + schema_version: String
+}
+
+' Core Models
+class Patient {
+    + id: Integer <<PK>>
+    + patient_number: String <<unique>>
+    + first_name: String
+    + middle_name: String
+    + last_name: String
+    + date_of_birth: Date
+    + gender: Char
+    + ssn: String
+    + allergies: Text
+    + code_status: String
+    + poa_name: String
+    + poa_contact: String
+    + veteran: Boolean
+    + veteran_spouse: Boolean
+    + marital_status: String
+    + address_info: Address
+    + last_updated: DateTime
+    + modified_by: User <<FK>>
+}
+
+class Provider {
+    + id: Integer <<PK>>
+    + date: Date
+    + provider: String
+    + practice: String
+    + address_info: Address
+    + fax: String
+    + phone: String
+    + source: String
+}
+
+class Diagnosis {
+    + id: Integer <<PK>>
+    + patient: Patient <<FK>>
+    + icd_code: String
+    + diagnosis: String
+    + date: Date
+    + provider: Provider <<FK>>
+    + source: String
+    + notes: Text
+}
+
+class Visits {
+    + id: String <<PK>>
+    + patient: Patient <<FK>>
+    + date: Date
+    + visit_type: String
+    + provider: Provider <<FK>>
+    + practice: String
+    + chief_complaint: Text
+    + assessment: Text
+    + plan: Text
+    + notes: Text
+    + source: String
+}
+
+class Vitals {
+    + id: String <<PK>>
+    + patient: Patient <<FK>>
+    + date: Date
+    + blood_pressure: String
+    + temperature: Float
+    + spo2: Float
+    + pulse: Integer
+    + respirations: Integer
+    + supp_o2: Boolean
+    + pain: Integer
+    + source: String
+}
+
+class CmpLabs {
+    + id: Integer <<PK>>
+    + patient: Patient <<FK>>
+    + date: Date
+    + sodium: Decimal
+    + potassium: Decimal
+    + chloride: Decimal
+    + co2: Decimal
+    + glucose: Decimal
+    + bun: Decimal
+    + creatinine: Decimal
+    + calcium: Decimal
+    + protein: Decimal
+    + albumin: Decimal
+    + bilirubin: Decimal
+    + gfr: Decimal
+}
+
+class CbcLabs {
+    + id: Integer <<PK>>
+    + patient: Patient <<FK>>
+    + date: Date
+    + rbc: Decimal
+    + wbc: Decimal
+    + hemoglobin: Decimal
+    + hematocrit: Decimal
+    + mcv: Decimal
+    + mchc: Decimal
+    + rdw: Decimal
+    + platelets: Decimal
+    + neutrophils: Decimal
+    + lymphocytes: Decimal
+    + monocytes: Decimal
+    + eosinophils: Decimal
+    + basophils: Decimal
+}
+
+class Medications {
+    + id: UUID <<PK>>
+    + patient: Patient <<FK>>
+    + date_prescribed: Date
+    + drug: String
+    + dose: String
+    + frequency: String
+    + route: String
+    + notes: Text
+    + prn: Boolean
+    + dc_date: Date
+}
+
+class PatientNote {
+    + id: Integer <<PK>>
+    + patient: Patient <<FK>>
+    + title: String
+    + content: Text
+    + category: String
+    + created_by: User <<FK>>
+    + created_at: DateTime
+    + updated_at: DateTime
+    + is_pinned: Boolean
+    + content_type: ContentType <<FK>>
+    + object_id: String
+}
+
+class NoteTag {
+    + id: Integer <<PK>>
+    + name: String <<unique>>
+    + description: Text
+    + created_at: DateTime
+}
+
+class NoteAttachment {
+    + id: Integer <<PK>>
+    + note: PatientNote <<FK>>
+    + file: File
+    + filename: String
+    + uploaded_at: DateTime
+    + file_type: String
+}
+
+' Relationships
+Patient "1" -- "*" Diagnosis
+Patient "1" -- "*" Visits
+Patient "1" -- "*" Vitals
+Patient "1" -- "*" CmpLabs
+Patient "1" -- "*" CbcLabs
+Patient "1" -- "*" Medications
+Patient "1" -- "*" PatientNote
+PatientNote "*" -- "*" NoteTag
+PatientNote "1" -- "*" NoteAttachment
+Provider "1" -- "*" Diagnosis
+Provider "1" -- "*" Visits
+
+@enduml

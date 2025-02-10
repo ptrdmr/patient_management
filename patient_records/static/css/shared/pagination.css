@@ -6,59 +6,77 @@
 
 .pagination {
     display: flex;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    gap: var(--spacing-xs);
-}
-
-.page-item {
-    margin: 0;
-}
-
-.page-link {
-    display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 2rem;
-    height: 2rem;
-    padding: 0 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    color: var(--color-primary);
+    gap: 0.5rem;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+}
+
+.pagination .page-link,
+.pagination .current,
+.pagination .ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
     text-decoration: none;
     transition: all 0.2s ease;
+}
+
+.pagination .page-link {
     background-color: white;
-    font-size: 0.875rem;
+    color: var(--primary-color, #3B82F6);
+    border: 1px solid #E5E7EB;
 }
 
-.page-item.active .page-link,
-span.current {
-    background-color: var(--color-primary);
-    border-color: var(--color-primary);
+.pagination .page-link:hover {
+    background-color: #F3F4F6;
+    border-color: #D1D5DB;
+}
+
+.pagination .current {
+    background-color: var(--primary-color, #3B82F6);
     color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 2rem;
-    height: 2rem;
-    padding: 0 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    border: 1px solid var(--primary-color, #3B82F6);
 }
 
-.page-item:not(.disabled):not(.active) .page-link:hover {
-    background-color: var(--color-light);
-    border-color: var(--color-primary);
-    color: var(--color-primary);
+.pagination .ellipsis {
+    color: #6B7280;
+    cursor: default;
 }
 
-.page-item.disabled .page-link {
-    color: var(--text-muted);
-    background-color: var(--color-light);
-    cursor: not-allowed;
-    pointer-events: none;
+/* Previous/Next buttons */
+.pagination .page-link:first-child,
+.pagination .page-link:last-child {
+    padding: 0.5rem 1rem;
+    min-width: auto;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+    .pagination {
+        gap: 0.25rem;
+    }
+
+    .pagination .page-link,
+    .pagination .current,
+    .pagination .ellipsis {
+        min-width: 2rem;
+        height: 2rem;
+        padding: 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .pagination .page-link:first-child,
+    .pagination .page-link:last-child {
+        padding: 0.25rem 0.5rem;
+    }
 }
 
 /* Loading spinner */

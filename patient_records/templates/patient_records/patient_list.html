@@ -6,45 +6,43 @@
 <link rel="stylesheet" href="{% static 'css/patient-list.css' %}">
 {% endblock %}
 
-{% block title %}Patients{% endblock %}
+{% block title %}Patient List{% endblock %}
 
 {% block content %}
 {% include 'components/_breadcrumbs.html' %}
 
 <div class="content-header">
     <h1>Patient List</h1>
-    <a href="{% url 'add_patient' %}" class="btn primary">Add New Patient</a>
+    <a href="{% url 'add_patient' %}" class="btn primary" role="button">
+        <i class="fas fa-plus-circle"></i>
+        Add New Patient
+    </a>
 </div>
 
 <div class="search-panel">
-    <div class="search-header" data-toggle="collapse" data-target="#advancedSearch">
-        <h2>Advanced Search <span class="toggle-icon">▼</span></h2>
+    <div class="search-header" data-toggle="collapse" data-target="#advancedSearch" role="button" aria-expanded="true" aria-controls="advancedSearch">
+        <h2>
+            Advanced Search
+            <span class="toggle-icon" aria-hidden="true">▼</span>
+        </h2>
     </div>
     
-    <div id="advancedSearch" class="collapse show">
-        <form method="get" id="patientSearchForm" class="search-form">
+    <form method="get" id="patient-search-form" class="search-form" role="search">
+        <div id="advancedSearch" class="collapse show">
             <div class="search-row">
                 <div class="search-field">
                     {{ search_form.search.label_tag }}
                     {{ search_form.search }}
+                    {% if search_form.search.help_text %}
+                        <small class="help-text">{{ search_form.search.help_text }}</small>
+                    {% endif %}
                 </div>
                 <div class="search-field">
                     {{ search_form.patient_id.label_tag }}
                     {{ search_form.patient_id }}
-                </div>
-            </div>
-
-            <div class="search-row">
-                <div class="search-field">
-                    {{ search_form.icd_code.label_tag }}
-                    <div class="icd-code-wrapper">
-                        {{ search_form.icd_code }}
-                        <div class="autocomplete-results" style="display: none;"></div>
-                    </div>
-                </div>
-                <div class="search-field">
-                    {{ search_form.diagnosis_text.label_tag }}
-                    {{ search_form.diagnosis_text }}
+                    {% if search_form.patient_id.help_text %}
+                        <small class="help-text">{{ search_form.patient_id.help_text }}</small>
+                    {% endif %}
                 </div>
             </div>
 
@@ -52,92 +50,71 @@
                 <div class="search-field">
                     {{ search_form.gender.label_tag }}
                     {{ search_form.gender }}
+                    {% if search_form.gender.help_text %}
+                        <small class="help-text">{{ search_form.gender.help_text }}</small>
+                    {% endif %}
                 </div>
                 <div class="search-field">
                     <label>Age Range</label>
-                    <div class="age-range">
+                    <div class="age-range" role="group" aria-label="Age range">
                         {{ search_form.age_min }}
-                        <span>to</span>
+                        <span aria-hidden="true">to</span>
                         {{ search_form.age_max }}
                     </div>
+                    {% if search_form.age_min.help_text or search_form.age_max.help_text %}
+                        <small class="help-text">Enter age in years</small>
+                    {% endif %}
                 </div>
             </div>
 
             <div class="search-row">
-                <div class="search-field">
-                    {{ search_form.code_status.label_tag }}
-                    {{ search_form.code_status }}
-                </div>
                 <div class="search-field">
                     <label>Date Added Range</label>
-                    <div class="date-range">
+                    <div class="date-range" role="group" aria-label="Date added range">
                         {{ search_form.date_added_from }}
-                        <span>to</span>
+                        <span aria-hidden="true">to</span>
                         {{ search_form.date_added_to }}
                     </div>
+                    {% if search_form.date_added_from.help_text or search_form.date_added_to.help_text %}
+                        <small class="help-text">Select date range</small>
+                    {% endif %}
                 </div>
-            </div>
-
-            <div class="search-row">
                 <div class="search-field">
                     {{ search_form.sort_by.label_tag }}
                     {{ search_form.sort_by }}
+                    {% if search_form.sort_by.help_text %}
+                        <small class="help-text">{{ search_form.sort_by.help_text }}</small>
+                    {% endif %}
                 </div>
             </div>
 
             <div class="search-actions">
-                <button type="submit" class="btn primary">Apply Filters</button>
-                <button type="button" class="btn secondary" id="clearFilters">Clear Filters</button>
+                <button type="submit" class="btn primary">
+                    <i class="fas fa-search"></i>
+                    Apply Filters
+                </button>
+                <button type="button" class="btn secondary" id="clearFilters">
+                    <i class="fas fa-times"></i>
+                    Clear Filters
+                </button>
             </div>
-        </form>
-    </div>
-</div>
-
-<div class="results-info">
-    {% if total_patients %}
-        <p>Showing {{ patients.start_index }} - {{ patients.end_index }} of {{ total_patients }} patients</p>
-    {% endif %}
+        </div>
+    </form>
 </div>
 
 <div class="patient-list">
-    {% if patients %}
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Patient ID</th>
-                    <th>Name</th>
-                    <th>DOB</th>
-                    <th>Gender</th>
-                    <th>Last Updated</th>
-                    <th><span class="sr-only">Actions</span></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for patient in patients %}
-                <tr id="patient-{{ patient.id }}">
-                    <td>{{ patient.patient_number }}</td>
-                    <td><a href="{% url 'patient_detail' patient.id %}">{{ patient|full_name }}</a></td>
-                    <td>{{ patient.date_of_birth|date:"M d, Y" }}</td>
-                    <td>{{ patient.get_gender_display }}</td>
-                    <td>{{ patient.last_updated|date:"M d, Y" }}</td>
-                    <td class="actions">
-                        <a href="{% url 'patient_detail' patient.id %}" class="btn primary btn-sm">View</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p class="no-results">No patients found matching your criteria.</p>
-    {% endif %}
+    <div class="patient-list-content" role="region" aria-label="Patient search results">
+        {% include 'patient_records/patient_list_content.html' %}
+    </div>
 </div>
 
-{% if is_paginated %}
-    {% include 'components/_pagination.html' %}
-{% endif %}
+<!-- Loading overlay -->
+<div class="loading-overlay" style="display: none;">
+    <div class="spinner"></div>
+    <span>Loading patients...</span>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/icd-autocomplete.js' %}"></script>
-<script src="{% static 'js/patient-search.js' %}"></script>
+<script src="{% static 'js/patient-list.js' %}"></script>
 {% endblock %}

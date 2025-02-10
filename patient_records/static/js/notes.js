@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (backdrop) {
             backdrop.remove();
         }
+        // Reset form on modal close
+        resetForm();
     });
 
     quickViewModal.addEventListener('hidden.bs.modal', function () {
@@ -48,26 +50,27 @@ document.addEventListener('DOMContentLoaded', function() {
             editor.on('change', function() {
                 editor.save();
             });
+        },
+        init_instance_callback: function(editor) {
+            editor.on('submit', function(e) {
+                e.preventDefault(); // Prevent TinyMCE's default submit behavior
+            });
         }
     });
 
-    // Handle New Note buttons
-    const newNoteButtons = [
-        '#newNoteBtn',
-        '#emptyStateNewNote'
-    ].map(
-        selector => document.querySelector(selector)
-    ).filter(Boolean);
-
-    newNoteButtons.forEach(btn => {
-        btn.addEventListener('click', function(e) {
+    // Handle New Note button clicks - using event delegation
+    document.addEventListener('click', function(e) {
+        const newNoteBtn = e.target.closest('#newNoteBtn, #emptyStateNewNote');
+        if (newNoteBtn) {
             e.preventDefault();
+            e.stopPropagation();
+            
             resetForm();
             document.querySelector('#noteModalLabel').textContent = 'New Note';
             document.querySelector('.note-form').setAttribute('action', '/patient/notes/create/');
             document.querySelector('.modal-footer .btn-primary').textContent = 'Create Note';
             noteModalInstance.show();
-        });
+        }
     });
 
     // Handle Edit Note
@@ -96,35 +99,49 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Handle Delete Note
+    // Handle Delete Note with improved event handling
+    const deleteNoteHandler = async function(noteId) {
+        try {
+            const response = await fetch(`/patient/notes/${noteId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                const noteElement = document.querySelector(`[data-note-id="${noteId}"]`);
+                if (noteElement) {
+                    noteElement.remove();
+                }
+                const noteDetail = document.querySelector('#noteDetail');
+                if (noteDetail) {
+                    noteDetail.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-file-alt"></i>
+                            <p>Select a note to view its contents</p>
+                            <p class="text-muted">Or create a new note to get started</p>
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('Error deleting note:', error);
+            alert('Failed to delete note. Please try again.');
+        }
+    };
+
     document.addEventListener('click', function(e) {
-        if (e.target.closest('.delete-note')) {
+        const deleteButton = e.target.closest('.delete-note');
+        if (deleteButton) {
+            // Stop event immediately
             e.preventDefault();
-            const noteId = e.target.closest('.delete-note').dataset.noteId;
-            if (confirm('Are you sure you want to delete this note?')) {
-                fetch(`/patient/notes/${noteId}/delete/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken')
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Remove note from list and reset detail view
-                        const noteElement = document.querySelector(`[data-note-id="${noteId}"]`);
-                        if (noteElement) {
-                            noteElement.remove();
-                        }
-                        document.querySelector('#noteDetail').innerHTML = `
-                            <div class="empty-state">
-                                <i class="fas fa-file-alt"></i>
-                                <p>Select a note to view its contents</p>
-                                <p class="text-muted">Or create a new note to get started</p>
-                            </div>
-                        `;
-                    }
-                });
+            e.stopPropagation();
+            e.stopImmediatePropagation(); // This prevents other handlers from firing
+            
+            const noteId = deleteButton.dataset.noteId;
+            if (window.confirm('Are you sure you want to delete this note?')) {
+                deleteNoteHandler(noteId);
             }
         }
     });
@@ -132,35 +149,83 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle form submission
     const noteForm = document.querySelector('.note-form');
     if (noteForm) {
-        noteForm.addEventListener('submit', function(e) {
+        noteForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            e.stopPropagation();
             
-            // Save TinyMCE content before submission
-            tinymce.triggerSave();
+            // Check if form is already being submitted
+            if (this.hasAttribute('data-submitting') || this.getAttribute('data-submit-once') === 'submitted') {
+                return;
+            }
             
-            const formData = new FormData(this);
+            // Mark form as being submitted
+            this.setAttribute('data-submitting', 'true');
+            this.setAttribute('data-submit-once', 'submitted');
             
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
+            const submitButton = this.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+            }
+            
+            try {
+                // Save TinyMCE content
+                if (tinymce.get('id_content')) {
+                    tinymce.get('id_content').save();
                 }
-            })
-            .then(response => response.json())
-            .then(data => {
+                
+                const formData = new FormData(this);
+                
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                const data = await response.json();
+                
                 if (data.success) {
+                    // Hide modal first
                     noteModalInstance.hide();
-                    // Refresh notes list
-                    location.reload();
+                    // Redirect to refresh the page
+                    window.location.href = window.location.href;
                 } else {
                     displayFormErrors(data.errors);
+                    // Reset submission state on error
+                    this.removeAttribute('data-submitting');
+                    this.removeAttribute('data-submit-once');
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Create Note';
+                    }
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error submitting note form:', error);
                 alert('There was an error saving your note. Please try again.');
-            });
+                // Reset submission state on error
+                this.removeAttribute('data-submitting');
+                this.removeAttribute('data-submit-once');
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Create Note';
+                }
+            }
+        });
+        
+        // Reset form submission state when modal is hidden
+        noteModal.addEventListener('hidden.bs.modal', function() {
+            const form = document.querySelector('.note-form');
+            if (form) {
+                form.removeAttribute('data-submitting');
+                form.removeAttribute('data-submit-once');
+                const submitButton = form.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Create Note';
+                }
+            }
         });
     }
 
@@ -169,7 +234,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('.note-form');
         if (form) {
             form.reset();
-            tinymce.get('id_content').setContent('');
+            if (tinymce.get('id_content')) {
+                tinymce.get('id_content').setContent('');
+            }
             // Clear any previous error messages
             form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
             form.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');

@@ -1,14 +1,92 @@
 {% extends 'patient_records/base_form.html' %}
+{% load static %}
+{% load form_filters %}
 
 {% block title %}Add Visit{% endblock %}
 
+{% block extra_css %}
+<style>
+    .form-wrapper {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block form_attrs %}id="visitForm" class="needs-validation" novalidate{% endblock %}
+
 {% block form_content %}
+<div class="form-row">
     {% for field in form %}
-        {% include "patient_records/partials/_form_field.html" %}
+    <div class="form-col">
+        <div class="field-wrapper{% if field.field.required %} required{% endif %}">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}
+            <div class="help-text">{{ field.help_text }}</div>
+            {% endif %}
+            <div class="invalid-feedback">
+                {% if field.errors %}
+                {{ field.errors|join:", " }}
+                {% endif %}
+            </div>
+            <div class="valid-feedback">
+                Looks good!
+            </div>
+        </div>
+    </div>
     {% endfor %}
+</div>
 {% endblock %}
 
 {% block form_actions %}
-    <button type="submit" class="btn primary">Save Visit</button>
-    <a href="{% url 'patient_detail' patient.id %}" class="btn secondary">Cancel</a>
+<button type="submit" class="btn primary" id="submitBtn">{{ submit_label|default:"Save Visit" }}</button>
+<a href="{% url 'patient_detail' patient.id %}" class="btn secondary">Cancel</a>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+    import { FormValidator } from "{% static 'js/utils/form-validation.js' %}";
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('visitForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const validator = new FormValidator(form);
+        
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!validator.validate()) {
+                return;
+            }
+            
+            // Disable submit button to prevent double submission
+            submitBtn.disabled = true;
+            
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    // Handle validation errors
+                    validator.showErrors(data.errors);
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                submitBtn.disabled = false;
+            }
+        });
+    });
+</script>
 {% endblock %}

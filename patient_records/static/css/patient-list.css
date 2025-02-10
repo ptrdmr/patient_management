@@ -1,30 +1,62 @@
+/* Base Layout */
+:root {
+    --background-light: #ffffff;
+    --background-offset: #f9fafb;
+    --text-color: #1f2937;
+    --text-color-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --input-background: #ffffff;
+    --link-color: #8BCFB7;  /* Main mint green */
+    --link-color-hover: #9ddbc7; /* Lighter mint green for hover */
+    --hover-background: #f3f6f4;
+    --accent-color: #6baa92; /* Darker mint green for accents */
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --success-color: #8BCFB7;
+}
+
+body {
+    background-color: var(--background-offset);
+    color: var(--text-color);
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.content-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-color);
+}
+
+/* Search Panel */
 .search-panel {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    background: var(--background-light);
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .search-header {
-    padding: 1rem;
-    background: #f8f9fa;
-    border-bottom: 1px solid #ddd;
+    padding: 1rem 1.5rem;
+    background: var(--background-offset);
+    border-bottom: 1px solid var(--border-color);
     cursor: pointer;
     user-select: none;
 }
 
 .search-header h2 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1rem;
+    color: var(--text-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
-}
-
-.toggle-icon {
-    font-size: 0.8rem;
-    transition: transform 0.2s;
 }
 
 .search-form {
@@ -41,11 +73,30 @@
 .search-field {
     display: flex;
     flex-direction: column;
+    gap: 0.5rem;
 }
 
 .search-field label {
-    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-color-muted);
     font-weight: 500;
+}
+
+.search-field input,
+.search-field select {
+    padding: 0.5rem;
+    background: var(--input-background);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    color: var(--text-color);
+    font-size: 0.875rem;
+}
+
+.search-field input:focus,
+.search-field select:focus {
+    outline: none;
+    border-color: var(--link-color);
+    box-shadow: 0 0 0 3px rgba(139, 207, 183, 0.1);
 }
 
 .age-range,
@@ -58,57 +109,114 @@
 
 .age-range span,
 .date-range span {
-    text-align: center;
-    color: #666;
+    color: var(--text-color-muted);
+    font-size: 0.875rem;
 }
 
 .search-actions {
     display: flex;
     gap: 1rem;
     margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #ddd;
 }
 
-.icd-search-wrapper {
-    position: relative;
+/* Patient List Table */
+.patient-list {
+    background: var(--background-light);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.autocomplete-results {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #ddd;
-    border-top: none;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1000;
-    display: none;
+.patient-count {
+    padding: 0.75rem 1.5rem;
+    color: var(--text-color-muted);
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-offset);
 }
 
-.autocomplete-item {
-    padding: 0.5rem;
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    padding: 0.75rem 1.5rem;
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-color);
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-offset);
+}
+
+.data-table td {
+    padding: 0.75rem 1.5rem;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.875rem;
+}
+
+.data-table tr:hover td {
+    background-color: var(--hover-background);
+}
+
+.patient-id {
+    font-family: monospace;
+    color: var(--text-color-muted);
     cursor: pointer;
 }
 
-.autocomplete-item:hover {
-    background: #f8f9fa;
+.data-table a {
+    color: var(--link-color);
+    text-decoration: none;
 }
 
-.results-info {
-    margin-bottom: 1rem;
-    color: #666;
+.data-table a:hover {
+    text-decoration: underline;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    border: none;
+    cursor: pointer;
+    background: var(--link-color);
+    color: white;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    background: var(--link-color-hover);
+    transform: translateY(-1px);
+}
+
+.btn.secondary {
+    background: white;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.btn.secondary:hover {
+    border-color: var(--link-color);
+    color: var(--link-color);
+    background: white;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
 }
 
 .no-results {
     text-align: center;
     padding: 2rem;
-    color: #666;
+    color: var(--text-color-muted);
 }
 
-/* Responsive adjustments */
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
     .search-row {
         grid-template-columns: 1fr;
@@ -120,5 +228,11 @@
     
     .search-actions button {
         width: 100%;
+    }
+    
+    .data-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 } 

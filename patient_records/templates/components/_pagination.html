@@ -6,15 +6,21 @@
                data-prefix="{{ param_prefix }}">&laquo; Previous</a>
         {% endif %}
         
-        {% for num in page_obj.paginator.page_range %}
-            {% if num == page_obj.number %}
-                <span class="current">{{ num }}</span>
-            {% else %}
-                <a href="#" class="page-link" 
-                   data-page="{{ num }}"
-                   data-prefix="{{ param_prefix }}">{{ num }}</a>
-            {% endif %}
-        {% endfor %}
+        {% with ''|center:page_obj.paginator.num_pages as range %}
+            {% for _ in range %}
+                {% with forloop.counter as num %}
+                    {% if num == page_obj.number %}
+                        <span class="current">{{ num }}</span>
+                    {% elif num == 1 or num == page_obj.paginator.num_pages or num|add:"-2" <= page_obj.number and num|add:"2" >= page_obj.number %}
+                        <a href="#" class="page-link" 
+                           data-page="{{ num }}"
+                           data-prefix="{{ param_prefix }}">{{ num }}</a>
+                    {% elif num == 2 and page_obj.number > 4 or num == page_obj.paginator.num_pages|add:"-1" and page_obj.number < page_obj.paginator.num_pages|add:"-3" %}
+                        <span class="ellipsis">&hellip;</span>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+        {% endwith %}
         
         {% if page_obj.has_next %}
             <a href="#" class="page-link" 

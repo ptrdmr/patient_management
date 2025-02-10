@@ -1,4 +1,5 @@
 {% extends 'patient_records/partials/_base_records.html' %}
+{% load static %}
 
 {% block record_header_extra %}
 <span class="symptom-type">{{ record.symptom_type }}</span>
@@ -12,4 +13,82 @@
     <p><strong>Notes:</strong> {{ record.notes|default:"No notes provided" }}</p>
     <p><strong>Source:</strong> {{ record.source }}</p>
 </div>
+{% endblock %}
+
+<div class="clinical-data-section symptoms-section">
+    <div class="section-header">
+        <h3>Symptoms</h3>
+        {% if symptoms_summary %}
+            <div class="latest-summary">
+                <h4>Latest Symptoms Summary</h4>
+                <div class="summary-content">
+                    <p><strong>Symptom:</strong> {{ symptoms_summary.symptom|default:"Not specified" }}</p>
+                    <p><strong>Severity:</strong> {{ symptoms_summary.severity|default:"Not specified" }}</p>
+                    <p><strong>Reported By:</strong> {{ symptoms_summary.person_reporting|default:"Not specified" }}</p>
+                    <p><strong>Last Updated:</strong> {{ symptoms_summary.recorded_at|date:"F j, Y" }}</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if records %}
+        {% for record in records %}
+            <div class="data-card collapsible">
+                <div class="card-header">
+                    <div class="header-content">
+                        <span class="date">{{ record.date|date:"F j, Y" }}</span>
+                        <span class="symptom-name">{{ record.symptom|default:"Unspecified Symptom" }}</span>
+                        {% if record.severity %}
+                            <span class="severity">Severity: {{ record.severity }}</span>
+                        {% endif %}
+                    </div>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    {% if record.notes %}
+                        <p><strong>Notes:</strong> {{ record.notes }}</p>
+                    {% endif %}
+                    <p><strong>Source:</strong> {{ record.source|default:"Not specified" }}</p>
+                    <p><strong>Reported By:</strong> {{ record.person_reporting|default:"Not specified" }}</p>
+                    
+                    {% if provider_details %}
+                        <div class="provider-info">
+                            <h4>Provider Information</h4>
+                            <p><strong>Provider:</strong> {{ provider_details.name|default:default_provider.name }}</p>
+                            <p><strong>Practice:</strong> {{ provider_details.practice|default:default_provider.practice }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>{{ default_symptom.description }}</p>
+            <a href="{% url 'add_symptoms' patient.id %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Symptoms
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize collapsible cards
+        const cards = document.querySelectorAll('.collapsible');
+        cards.forEach(card => {
+            const header = card.querySelector('.card-header');
+            const content = card.querySelector('.card-content');
+            const icon = card.querySelector('.collapse-icon');
+            
+            header.addEventListener('click', () => {
+                content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                icon.textContent = content.style.display === 'none' ? '▼' : '▲';
+            });
+            
+            // Start collapsed
+            content.style.display = 'none';
+        });
+    });
+</script>
 {% endblock %} 

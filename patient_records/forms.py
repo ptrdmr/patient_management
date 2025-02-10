@@ -3,6 +3,8 @@ from .models import *
 import datetime
 from .widgets import ICDCodeWidget, PhoneNumberWidget
 from django.utils import timezone
+from django.forms import ModelForm
+import re
 
 # Move these base classes to the top of the file
 class BaseForm(forms.ModelForm):
@@ -113,17 +115,30 @@ class SectionedForm(BaseForm):
 class ProviderForm(SectionedForm):
     class Meta:
         model = Provider
-        fields = ['provider', 'practice', 'address', 'city', 'state', 'zip', 'fax', 'phone', 'source']
+        fields = ['registration_date', 'provider', 'practice', 'address', 'city', 'state', 'zip_code', 'fax', 'phone', 'source', 'is_active']
+        widgets = {
+            'registration_date': forms.DateInput(attrs={'type': 'date'}),
+            'phone': forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}),
+            'fax': forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}),
+            'zip_code': forms.TextInput(attrs={'placeholder': '12345 or 12345-6789'}),
+            'state': forms.TextInput(attrs={'placeholder': 'XX', 'maxlength': '2'})
+        }
+        help_texts = {
+            'phone': 'Enter as XXX-XXX-XXXX',
+            'fax': 'Enter as XXX-XXX-XXXX (optional)',
+            'zip_code': 'Enter as 12345 or 12345-6789',
+            'state': 'Two-letter state code (e.g., CA)',
+        }
 
     def get_sections(self):
         return [
             {
                 'title': 'Provider Information',
-                'fields': ['provider', 'practice']
+                'fields': ['provider', 'practice', 'registration_date', 'is_active']
             },
             {
                 'title': 'Contact Information',
-                'fields': ['address', 'city', 'state', 'zip', 'phone', 'fax']
+                'fields': ['address', 'city', 'state', 'zip_code', 'phone', 'fax']
             },
             {
                 'title': 'Additional Information',
@@ -131,23 +146,70 @@ class ProviderForm(SectionedForm):
             }
         ]
 
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        if phone:
+            # Remove any non-digit characters
+            cleaned = ''.join(filter(str.isdigit, phone))
+            if len(cleaned) != 10:
+                raise forms.ValidationError('Phone number must be 10 digits')
+            # Format as XXX-XXX-XXXX
+            return f"{cleaned[:3]}-{cleaned[3:6]}-{cleaned[6:]}"
+        return phone
+
+    def clean_fax(self):
+        fax = self.cleaned_data.get('fax')
+        if fax:
+            # Remove any non-digit characters
+            cleaned = ''.join(filter(str.isdigit, fax))
+            if len(cleaned) != 10:
+                raise forms.ValidationError('Fax number must be 10 digits')
+            # Format as XXX-XXX-XXXX
+            return f"{cleaned[:3]}-{cleaned[3:6]}-{cleaned[6:]}"
+        return fax
+
+    def clean_state(self):
+        state = self.cleaned_data.get('state')
+        if state:
+            state = state.upper()
+            if not re.match(r'^[A-Z]{2}$', state):
+                raise forms.ValidationError('State must be a two-letter code')
+            return state
+        return state
+
+    def clean_zip_code(self):
+        zip_code = self.cleaned_data.get('zip_code')
+        if zip_code:
+            # Remove any non-digit characters
+            cleaned = ''.join(filter(str.isdigit, zip_code))
+            if len(cleaned) == 5:
+                return cleaned
+            elif len(cleaned) == 9:
+                return f"{cleaned[:5]}-{cleaned[5:]}"
+            raise forms.ValidationError('ZIP code must be 5 or 9 digits')
+        return zip_code
+
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if not instance.date:
-            instance.date = datetime.date.today()
+        if not instance.registration_date:
+            instance.registration_date = datetime.date.today()
         if commit:
             instance.save()
         return instance
 
-class DiagnosisForm(forms.ModelForm):
+class DiagnosisForm(SectionedForm):
     class Meta:
         model = Diagnosis
-        fields = ['icd_code', 'diagnosis', 'date', 'notes']
+        fields = ['icd_code', 'diagnosis', 'date', 'notes', 'source']
         widgets = {
             'icd_code': ICDCodeWidget(attrs={
                 'placeholder': 'Enter ICD code',
                 'data-diagnosis-field': 'diagnosis'
             }),
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'diagnosis': forms.TextInput(attrs={'placeholder': 'Enter diagnosis'}),
+            'notes': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Enter any additional notes'}),
+            'source': forms.TextInput(attrs={'placeholder': 'Enter source of diagnosis'})
         }
 
     def get_sections(self):
@@ -155,9 +217,15 @@ class DiagnosisForm(forms.ModelForm):
             {
                 'title': 'Diagnosis Information',
                 'description': 'Enter diagnosis details',
-                'fields': ['icd_code', 'diagnosis', 'date', 'notes']
+                'fields': ['icd_code', 'diagnosis', 'date', 'notes', 'source']
             }
         ]
+
+    def clean_date(self):
+        date = self.cleaned_data.get('date')
+        if date and date > timezone.now().date():
+            raise forms.ValidationError('Future dates are not allowed.')
+        return date
 
 class VisitsForm(BaseForm):
     class Meta:
@@ -526,55 +594,33 @@ class RecordRequestLogForm(SectionedForm):
             }
         ]
 
-class PatientForm(SectionedForm):
+class PatientForm(ModelForm):
     class Meta:
         model = Patient
         fields = [
-            # Basic Information
-            'first_name', 'middle_name', 'last_name', 'date_of_birth', 
-            'gender', 'ssn', 'marital_status',
-            
-            # Contact Information
-            'street_address', 'city', 'state', 'zip',
-            'patient_phone', 'patient_email',
-            
-            # Power of Attorney
-            'poa_name', 'relationship', 'poa_contact',
-            
-            # Medical Information
-            'allergies', 'code_status'
+            'patient_number',
+            'first_name',
+            'middle_name',
+            'last_name',
+            'date_of_birth',
+            'gender',
+            'address',
+            'phone',
+            'email',
+            'emergency_contact',
+            'insurance_info'
         ]
         widgets = {
-            'date_of_birth': forms.DateInput(
-                attrs={
-                    'type': 'date',
-                    'class': 'form-control',
-                    'max': datetime.date.today().isoformat()
-                }
-            ),
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'address': forms.Textarea(attrs={'rows': 3}),
+            'emergency_contact': forms.Textarea(attrs={'rows': 3}),
+            'insurance_info': forms.Textarea(attrs={'rows': 3}),
         }
-
-    def get_sections(self):
-        return [
-            {
-                'title': 'Basic Information',
-                'fields': ['first_name', 'middle_name', 'last_name', 
-                          'date_of_birth', 'gender', 'ssn', 'marital_status']
-            },
-            {
-                'title': 'Contact Information',
-                'fields': ['street_address', 'city', 'state', 'zip',
-                          'patient_phone', 'patient_email']
-            },
-            {
-                'title': 'Power of Attorney',
-                'fields': ['poa_name', 'relationship', 'poa_contact']
-            },
-            {
-                'title': 'Medical Information',
-                'fields': ['allergies', 'code_status']
-            }
-        ]
+        help_texts = {
+            'patient_number': 'External patient identifier',
+            'emergency_contact': 'Name and contact information for emergency contact',
+            'insurance_info': 'Insurance provider and policy details'
+        }
 
 class PatientNoteForm(SectionedForm):
     tags = forms.CharField(
@@ -668,29 +714,10 @@ class PatientSearchForm(forms.Form):
         })
     )
     
-    # Diagnosis search
-    icd_code = forms.CharField(
-        required=False,
-        label='ICD Code',
-        widget=forms.TextInput(attrs={
-            'placeholder': 'Enter ICD code',
-            'class': 'form-control',
-            'data-diagnosis-field': 'diagnosis_text'
-        })
-    )
-    diagnosis_text = forms.CharField(
-        required=False,
-        label='Diagnosis',
-        widget=forms.TextInput(attrs={
-            'placeholder': 'Diagnosis will appear here',
-            'class': 'form-control',
-            'readonly': 'readonly'
-        })
-    )
-    
     # Demographics
     age_min = forms.IntegerField(
         required=False,
+        min_value=0,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
             'placeholder': 'Min Age'
@@ -698,13 +725,14 @@ class PatientSearchForm(forms.Form):
     )
     age_max = forms.IntegerField(
         required=False,
+        min_value=0,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
             'placeholder': 'Max Age'
         })
     )
     gender = forms.ChoiceField(
-        choices=[('', '---')] + Patient.GENDER_CHOICES,
+        choices=[('', '---')] + list(Patient.GENDER_CHOICES),
         required=False,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
@@ -730,27 +758,76 @@ class PatientSearchForm(forms.Form):
         choices=[
             ('', '---'),
             ('last_name', 'Last Name'),
+            ('first_name', 'First Name'),
             ('date_of_birth', 'Date of Birth'),
-            ('last_updated', 'Last Updated'),
+            ('-created_at', 'Last Added'),
+            ('-updated_at', 'Last Updated'),
             ('patient_number', 'Patient ID')
         ],
         required=False,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Don't set any default values for date fields
+        self.fields['date_added_from'].initial = None
+        self.fields['date_added_to'].initial = None
+
+    def has_filter_value(self, field_name):
+        """Check if a field was explicitly set by the user"""
+        value = self.cleaned_data.get(field_name)
+        
+        # Handle different types of empty values
+        if value is None:
+            return False
+        if isinstance(value, str) and not value.strip():
+            return False
+        if isinstance(value, (list, dict, tuple)) and not value:
+            return False
+        
+        return True
+
+    def get_active_filters(self):
+        """Return a dictionary of filters that are actually in use"""
+        if not hasattr(self, 'cleaned_data'):
+            return {}
+            
+        active_filters = {}
+        for field_name, value in self.cleaned_data.items():
+            if self.has_filter_value(field_name):
+                # Strip whitespace from string values
+                if isinstance(value, str):
+                    value = value.strip()
+                active_filters[field_name] = value
+        return active_filters
+
     def clean(self):
         cleaned_data = super().clean()
+        
+        # Validate age range if both values are provided
         age_min = cleaned_data.get('age_min')
         age_max = cleaned_data.get('age_max')
-        
-        if age_min and age_max and age_min > age_max:
+        if age_min is not None and age_max is not None and age_min > age_max:
             raise forms.ValidationError('Minimum age cannot be greater than maximum age')
-            
+        
+        # Validate date range if both values are provided
         date_from = cleaned_data.get('date_added_from')
         date_to = cleaned_data.get('date_added_to')
         
+        today = timezone.now().date()
+        
+        # Only validate dates if they are actually provided
+        if date_from:
+            if date_from > today:
+                self.add_error('date_added_from', 'Date cannot be in the future')
+        
+        if date_to:
+            if date_to > today:
+                self.add_error('date_added_to', 'Date cannot be in the future')
+        
         if date_from and date_to and date_from > date_to:
             raise forms.ValidationError('From date cannot be later than to date')
-            
+        
         return cleaned_data
 

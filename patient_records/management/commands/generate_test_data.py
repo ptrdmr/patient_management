@@ -85,29 +85,17 @@ class Command(BaseCommand):
         patients = []
         for _ in range(self.record_count):
             patient = Patient.objects.create(
-                date=self.fake.date_this_year(),
-                first_name=self.fake.first_name()[:50],
-                last_name=self.fake.last_name()[:50],
-                middle_name=self.fake.first_name()[:50],
+                patient_number=f"P{self.fake.unique.random_number(digits=6)}",
+                first_name=self.fake.first_name()[:100],
+                middle_name=self.fake.first_name()[:100] if random.choice([True, False]) else None,
+                last_name=self.fake.last_name()[:100],
                 date_of_birth=self.fake.date_of_birth(),
-                gender=random.choice(['M', 'F', 'O']),
-                poa_name=f"{self.fake.first_name()} {self.fake.last_name()}"[:100],
-                poa_contact=self.fake.phone_number()[:100],
-                relationship=random.choice(['Spouse', 'Child', 'Sibling', 'Parent'])[:50],
-                veteran=random.choice([True, False]),
-                veteran_spouse=random.choice([True, False]),
-                marital_status=random.choice(['Single', 'Married', 'Divorced', 'Widowed'])[:50],
-                street_address=self.fake.street_address()[:255],
-                city=self.fake.city()[:100],
-                state=self.fake.state()[:100],
-                zip=self.fake.zipcode()[:20],
-                patient_phone=self.fake.phone_number()[:20],
-                patient_email=self.fake.email(),
-                allergies=random.choice(['None known', 'Penicillin', 'Peanuts', 'Latex']),
-                code_status=random.choice(['Full Code', 'DNR', 'DNI'])[:50],
-                ssn=self.fake.ssn()[:11],
-                height_cm=Decimal(str(random.uniform(150, 200))).quantize(Decimal('.01')),
-                height_inches=Decimal(str(random.uniform(59, 79))).quantize(Decimal('.01'))
+                gender=random.choice(['M', 'F', 'O', 'N']),
+                address=f"{self.fake.street_address()}\n{self.fake.city()}, {self.fake.state()} {self.fake.zipcode()}",
+                phone=self.fake.phone_number()[:20],
+                email=self.fake.email(),
+                emergency_contact=f"Name: {self.fake.name()}\nRelation: {random.choice(['Spouse', 'Child', 'Parent', 'Sibling'])}\nPhone: {self.fake.phone_number()}",
+                insurance_info=f"Provider: {self.fake.company()}\nPolicy #: {self.fake.random_number(digits=8)}\nGroup #: {self.fake.random_number(digits=6)}"
             )
             patients.append(patient)
         return patients
@@ -179,14 +167,14 @@ class Command(BaseCommand):
         symptoms_list = ['Fatigue', 'Headache', 'Nausea', 'Dizziness', 'Pain', 'Cough', 'Fever']
         for _ in range(random.randint(6, 18)):
             Symptoms.objects.create(
-                id=str(uuid.uuid4()),
                 patient=patient,
                 date=self.fake.date_this_year(),
                 symptom=random.choice(symptoms_list)[:200],
-                severity=random.randint(1, 10),
+                severity=random.randint(1, 5),
                 notes=self.fake.text(max_nb_chars=100),
                 source='Patient Report'[:100],
-                person_reporting=random.choice(['Self', 'Family Member', 'Caregiver'])[:200]
+                person_reporting=random.choice(['Self', 'Family Member', 'Caregiver'])[:200],
+                provider=random.choice(self.providers) if random.choice([True, False]) else None
             )
 
     def _create_diagnosis(self, patient):

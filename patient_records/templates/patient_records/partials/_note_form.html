@@ -6,7 +6,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            <form method="post" action="{% url 'create_note' %}" class="note-form" enctype="multipart/form-data">
+            <form class="note-form" method="POST" action="/patient/notes/create/" novalidate data-submit-once>
                 {% csrf_token %}
                 <input type="hidden" name="patient" value="{{ patient.id }}">
                 <div class="modal-body">

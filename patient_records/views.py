@@ -4,6 +4,7 @@ from django.core.paginator import Paginator
 from django.urls import reverse
 from .models import *
 from .forms import *  # We'll create these forms next
+from .event_sourcing.constants import *
 import datetime
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
@@ -34,6 +35,8 @@ from django.views.decorators.http import require_http_methods
 from .forms import VisitsForm, AdlsForm, ImagingForm, RecordRequestLogForm
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
+from .event_sourcing.event_store import EventStoreService
+from .models import ClinicalReadModel
 
 # Initialize the logger for this module
 logger = logging.getLogger('patient_records')  # Note: use the specific logger name we defined in settings.py
@@ -176,88 +179,118 @@ def add_patient(request):
 @login_required
 def patient_list(request):
     """View list of all patients with advanced search capabilities"""
-    search_form = PatientSearchForm(request.GET)
-    patients = Patient.objects.all()
-
+    print("\n=== PATIENT LIST DEBUG ===")
+    print(f"Request GET params: {request.GET}")
+    
+    search_form = PatientSearchForm(request.GET or None)
+    patients = Patient.objects.all().order_by('-updated_at')  # Default sort
+    
     if search_form.is_valid():
+        print(f"Form is valid")
+        active_filters = search_form.get_active_filters()
+        print(f"Active filters: {active_filters}")
+        
         # Basic search
-        search = search_form.cleaned_data.get('search')
-        if search:
-            patients = patients.filter(
-                Q(first_name__icontains=search) |
-                Q(middle_name__icontains=search) |
-                Q(last_name__icontains=search)
-            )
+        if 'search' in active_filters:
+            search = active_filters['search']
+            print(f"Applying search filter: {search}")
+            search_terms = search.split()
+            query = Q()
+            for term in search_terms:
+                term_query = (
+                    Q(first_name__icontains=term) |
+                    Q(middle_name__icontains=term) |
+                    Q(last_name__icontains=term) |
+                    Q(patient_number__icontains=term)
+                )
+                query |= term_query
+            patients = patients.filter(query)
+            print(f"After search filter - count: {patients.count()}")
 
         # Patient ID search
-        patient_id = search_form.cleaned_data.get('patient_id')
-        if patient_id:
+        if 'patient_id' in active_filters:
+            patient_id = active_filters['patient_id']
+            print(f"Applying patient ID filter: {patient_id}")
             patients = patients.filter(patient_number__icontains=patient_id)
+            print(f"After patient ID filter - count: {patients.count()}")
 
-        # ICD Code/Diagnosis search
-        diagnosis_text = search_form.cleaned_data.get('diagnosis_text')
-        if diagnosis_text:
-            patients = patients.filter(diagnosis__diagnosis__iexact=diagnosis_text).distinct()
-
-        # Demographics filters
-        age_min = search_form.cleaned_data.get('age_min')
-        age_max = search_form.cleaned_data.get('age_max')
-        if age_min:
-            min_date = timezone.now().date() - timezone.timedelta(days=age_min*365)
-            patients = patients.filter(date_of_birth__lte=min_date)
-        if age_max:
-            max_date = timezone.now().date() - timezone.timedelta(days=age_max*365)
-            patients = patients.filter(date_of_birth__gte=max_date)
-
-        gender = search_form.cleaned_data.get('gender')
-        if gender:
+        # Gender filter
+        if 'gender' in active_filters:
+            gender = active_filters['gender']
+            print(f"Applying gender filter: {gender}")
             patients = patients.filter(gender=gender)
+            print(f"After gender filter - count: {patients.count()}")
 
-        # Date filters
-        date_from = search_form.cleaned_data.get('date_added_from')
-        date_to = search_form.cleaned_data.get('date_added_to')
-        if date_from:
-            patients = patients.filter(date__gte=date_from)
-        if date_to:
-            patients = patients.filter(date__lte=date_to)
+        # Date range filter
+        if 'date_added_from' in active_filters:
+            from_date = active_filters['date_added_from']
+            print(f"Applying date_added_from filter: {from_date}")
+            from_datetime = timezone.make_aware(datetime.datetime.combine(from_date, datetime.time.min))
+            patients = patients.filter(created_at__gte=from_datetime)
+            print(f"After date_added_from filter - count: {patients.count()}")
+            
+        if 'date_added_to' in active_filters:
+            to_date = active_filters['date_added_to']
+            print(f"Applying date_added_to filter: {to_date}")
+            to_datetime = timezone.make_aware(datetime.datetime.combine(to_date, datetime.time.max))
+            patients = patients.filter(created_at__lte=to_datetime)
+            print(f"After date_added_to filter - count: {patients.count()}")
 
-        # Sort options
-        sort_by = search_form.cleaned_data.get('sort_by')
-        if sort_by:
+        # Age range filter
+        today = timezone.now().date()
+        
+        if 'age_min' in active_filters:
+            age_min = active_filters['age_min']
+            print(f"Applying age_min filter: {age_min}")
+            max_birth_date = today - timezone.timedelta(days=age_min * 365)
+            patients = patients.filter(date_of_birth__lte=max_birth_date)
+            print(f"After age_min filter - count: {patients.count()}")
+            
+        if 'age_max' in active_filters:
+            age_max = active_filters['age_max']
+            print(f"Applying age_max filter: {age_max}")
+            min_birth_date = today - timezone.timedelta(days=age_max * 365)
+            patients = patients.filter(date_of_birth__gte=min_birth_date)
+            print(f"After age_max filter - count: {patients.count()}")
+
+        # Sort handling
+        if 'sort_by' in active_filters:
+            sort_by = active_filters['sort_by']
+            print(f"Applying sort: {sort_by}")
             patients = patients.order_by(sort_by)
-        else:
-            patients = patients.order_by('last_name', 'first_name')
+    else:
+        print(f"Form validation errors: {search_form.errors}")
+
+    print(f"Final query: {patients.query}")
+    print(f"Final count: {patients.count()}")
 
     # Pagination
-    paginator = Paginator(patients, 10)
-    page_number = request.GET.get('page')
+    paginator = Paginator(patients, 10)  # Show 10 patients per page
+    page = request.GET.get('page', 1)
+    
     try:
-        page_obj = paginator.get_page(page_number)
-    except (PageNotAnInteger, EmptyPage) as e:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'error': str(e)}, status=400)
-        page_obj = paginator.get_page(1)
+            page_obj = paginator.page(paginator.num_pages)
+        else:
+            page_obj = paginator.page(1)
 
     context = {
-        'patients': page_obj,
         'search_form': search_form,
-        'is_paginated': paginator.num_pages > 1,
+        'patients': page_obj,
+        'total_patients': paginator.count,
         'page_obj': page_obj,
-        'total_patients': patients.count(),
+        'paginator': paginator,
         'breadcrumbs': [{'label': 'Patients', 'url': None}],
-        'page_title': 'Patient List'
+        'is_paginated': paginator.num_pages > 1
     }
 
-    # Handle AJAX requests
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        html = render_to_string('patient_records/partials/_patient_list.html', context, request=request)
-        pagination_html = render_to_string('components/_pagination.html', context, request=request)
-        results_info = render_to_string('patient_records/partials/_results_info.html', context, request=request)
-        return JsonResponse({
-            'html': html,
-            'pagination': pagination_html,
-            'results_info': results_info
-        })
+        html = render_to_string('patient_records/patient_list_content.html', context, request)
+        return JsonResponse({'html': html})
 
     return render(request, 'patient_records/patient_list.html', context)
 
@@ -370,32 +403,55 @@ def add_diagnosis(request, patient_id):
     """Add diagnosis for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
     
-    breadcrumbs = [
-        {'label': 'Patients', 'url': reverse('patient_list')},
-        {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
-        {'label': 'Add Diagnosis', 'url': None}
-    ]
-    
     if request.method == 'POST':
+        logger.debug(f'Processing diagnosis form submission for patient {patient_id}')
         form = DiagnosisForm(request.POST)
         if form.is_valid():
+            logger.debug(f'Diagnosis form is valid. Data: {form.cleaned_data}')
             diagnosis = form.save(commit=False)
             diagnosis.patient = patient
             diagnosis.save()
+            
+            # Create event store entry
+            event_store = EventStoreService()
+            event_data = {
+                'patient_id': patient_id,
+                'diagnosis_id': str(diagnosis.id),
+                'date': diagnosis.date.isoformat(),
+                'icd_code': diagnosis.icd_code,
+                'diagnosis': diagnosis.diagnosis,
+                'notes': diagnosis.notes,
+                'source': diagnosis.source
+            }
+            event_store.append_event(
+                aggregate_id=str(patient_id),
+                aggregate_type=CLINICAL_AGGREGATE,
+                event_type=DIAGNOSIS_ADDED,
+                event_data=event_data
+            )
+            
             messages.success(request, 'Diagnosis added successfully!')
             return redirect('patient_detail', patient_id=patient_id)
+        else:
+            logger.error(f'Diagnosis form validation failed. Errors: {form.errors}')
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = DiagnosisForm(initial={'patient': patient})
     
     context = {
         'form': form,
         'patient': patient,
-        'breadcrumbs': breadcrumbs,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Add Diagnosis', 'url': None}
+        ],
         'form_title': 'Add Diagnosis',
         'submit_label': 'Save Diagnosis',
         'cancel_url': reverse('patient_detail', args=[patient.id]),
         'confirmation_message': 'Are you sure you want to save this diagnosis?'
     }
+    
     return render(request, 'patient_records/add_diagnosis.html', context)
 
 @require_http_methods(["GET", "POST"])
@@ -403,13 +459,41 @@ def vital_signs_form(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     
     if request.method == "POST":
+        logger.debug(f'Processing vitals form submission for patient {patient_id}')
         form = VitalsForm(request.POST)
         if form.is_valid():
+            logger.debug(f'Vitals form is valid. Data: {form.cleaned_data}')
             vitals = form.save(commit=False)
             vitals.patient = patient
             vitals.save()
+            
+            # Create event store entry
+            event_store = EventStoreService()
+            event_data = {
+                'patient_id': patient_id,
+                'vitals_id': str(vitals.id),
+                'date': vitals.date.isoformat(),
+                'blood_pressure': vitals.blood_pressure,
+                'temperature': vitals.temperature,
+                'spo2': vitals.spo2,
+                'pulse': vitals.pulse,
+                'respirations': vitals.respirations,
+                'supp_o2': vitals.supp_o2,
+                'pain': vitals.pain,
+                'source': vitals.source
+            }
+            event_store.append_event(
+                aggregate_id=str(patient.id),
+                aggregate_type=CLINICAL_AGGREGATE,
+                event_type=VITALS_RECORDED,
+                event_data=event_data
+            )
+            
             messages.success(request, 'Vital signs recorded successfully!')
             return redirect('patient_detail', patient_id=patient_id)
+        else:
+            logger.error(f'Vitals form validation failed. Errors: {form.errors}')
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = VitalsForm()
 
@@ -590,29 +674,37 @@ def add_symptoms(request, patient_id):
     """Add symptoms for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
     
-    breadcrumbs = [
-        {'label': 'Patients', 'url': reverse('patient_list')},
-        {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
-        {'label': 'Add Symptoms', 'url': None}
-    ]
-    
     if request.method == 'POST':
+        logger.debug(f'Processing symptoms form submission for patient {patient_id}')
         form = SymptomsForm(request.POST)
         if form.is_valid():
-            symptom = form.save(commit=False)
-            symptom.patient = patient
-            symptom.save()
+            logger.debug(f'Symptoms form is valid. Data: {form.cleaned_data}')
+            symptoms = form.save(commit=False)
+            symptoms.patient = patient
+            symptoms.save()
+            
             messages.success(request, 'Symptoms added successfully!')
             return redirect('patient_detail', patient_id=patient_id)
+        else:
+            logger.error(f'Symptoms form validation failed. Errors: {form.errors}')
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = SymptomsForm(initial={'patient': patient})
     
     context = {
         'form': form,
         'patient': patient,
-        'breadcrumbs': breadcrumbs,
-        'form_title': 'Add Symptoms'
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Add Symptoms', 'url': None}
+        ],
+        'form_title': 'Add Symptoms',
+        'submit_label': 'Save Symptoms',
+        'cancel_url': reverse('patient_detail', args=[patient.id]),
+        'confirmation_message': 'Are you sure you want to save these symptoms?'
     }
+    
     return render(request, 'patient_records/add_symptoms.html', context)
 
 @login_required
@@ -845,8 +937,6 @@ def icd_code_lookup(request):
 def is_admin(user):
     return user.is_superuser or user.is_staff
 
-
-
 @login_required
 def patient_tab_data(request, patient_id, tab_name):
     try:
@@ -854,6 +944,12 @@ def patient_tab_data(request, patient_id, tab_name):
         page = request.GET.get('page', 1)
         items_per_page = 10
         today = datetime.date.today()
+        
+        # Get the latest clinical read model for symptoms and provider data
+        latest_clinical_data = (ClinicalReadModel.objects
+            .filter(patient_id=patient.id)
+            .order_by('-recorded_at')
+            .first())
         
         tab_data = {
             'overview': {
@@ -865,61 +961,32 @@ def patient_tab_data(request, patient_id, tab_name):
                     ).filter(
                         Q(dc_date__isnull=True) | Q(dc_date__gt=today)
                     ).order_by('-date_prescribed')[:5],
+                    'latest_clinical_data': latest_clinical_data
                 },
                 'template': 'patient_records/partials/_overview.html'
             },
             'visits': {
                 'queryset': Visits.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_visits.html'
-            },
-            'adls': {
-                'queryset': Adls.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_adls.html'
-            },
-            'diagnoses': {
-                'queryset': Diagnosis.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_diagnoses.html'
-            },
-            'cmp_labs': {
-                'queryset': CmpLabs.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_cmp_labs.html',
-                'context_name': 'labs',
-                'section_title': 'Comprehensive Metabolic Panel (CMP)'
-            },
-            'cbc_labs': {
-                'queryset': CbcLabs.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_cbc_labs.html',
-                'context_name': 'labs',
-                'section_title': 'Complete Blood Count (CBC)'
-            },
-            'vitals': {
-                'queryset': Vitals.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_vitals.html'
-            },
-            'measurements': {
-                'queryset': Measurements.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_measurements.html'
-            },
-            'medications': {
-                'queryset': Medications.objects.filter(patient=patient).order_by('-date_prescribed'),
-                'template': 'patient_records/partials/_medications.html',
-                'context_name': 'medications'
+                'template': 'patient_records/partials/_visits.html',
+                'context': {
+                    'latest_clinical_data': latest_clinical_data
+                }
             },
             'symptoms': {
                 'queryset': Symptoms.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_symptoms.html'
+                'template': 'patient_records/partials/_symptoms.html',
+                'context': {
+                    'latest_clinical_data': latest_clinical_data,
+                    'symptoms_summary': latest_clinical_data.symptoms_summary if latest_clinical_data else None,
+                    'provider_details': latest_clinical_data.provider_details if latest_clinical_data else None
+                }
             },
-            'imaging': {
-                'queryset': Imaging.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_imaging.html'
-            },
-            'occurrences': {
-                'queryset': Occurrences.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_occurrences.html'
-            },
-            'record_requests': {
-                'queryset': RecordRequestLog.objects.filter(patient=patient).order_by('-date'),
-                'template': 'patient_records/partials/_record_requests.html'
+            'diagnoses': {
+                'queryset': Diagnosis.objects.filter(patient=patient).order_by('-date'),
+                'template': 'patient_records/partials/_diagnoses.html',
+                'context': {
+                    'latest_clinical_data': latest_clinical_data
+                }
             }
         }
 
@@ -928,6 +995,10 @@ def patient_tab_data(request, patient_id, tab_name):
             return JsonResponse({'error': 'Invalid tab name'}, status=400)
 
         context = {'patient': patient}
+        
+        # Add any additional context from tab_info
+        if 'context' in tab_info:
+            context.update(tab_info['context'])
         
         if tab_info['queryset'] is not None:
             paginator = Paginator(tab_info['queryset'], items_per_page)
@@ -939,15 +1010,13 @@ def patient_tab_data(request, patient_id, tab_name):
             except (PageNotAnInteger, EmptyPage) as e:
                 logger.error(f"Pagination error: {str(e)}")
                 return JsonResponse({'error': str(e)}, status=400)
-
-        if 'section_title' in tab_info:
-            context['section_title'] = tab_info['section_title']
-
+                
+        # Add default values for empty fields
+        context['default_provider'] = {'name': 'Not Specified', 'practice': 'Not Available'}
+        context['default_symptom'] = {'description': 'No symptoms recorded', 'severity': 'N/A'}
+        
         html = render_to_string(tab_info['template'], context, request=request)
-        return JsonResponse({
-            'html': html,
-            'success': True
-        })
+        return JsonResponse({'html': html})
 
     except Exception as e:
         logger.error(f"Error loading tab data: {str(e)}")
@@ -994,15 +1063,34 @@ def add_visit(request, patient_id):
             visit = form.save(commit=False)
             visit.patient = patient
             visit.save()
-            messages.success(request, 'Visit recorded successfully!')
+            
+            success_message = 'Visit recorded successfully!'
+            messages.success(request, success_message)
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': success_message,
+                    'redirect': reverse('patient_detail', args=[patient_id])
+                })
             return redirect('patient_detail', patient_id=patient_id)
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
     else:
         form = VisitsForm()
     
-    return render(request, 'patient_records/add_visit.html', {
+    context = {
         'form': form,
-        'patient': patient  # Pass patient to template context
-    })
+        'patient': patient,
+        'form_title': 'Add Visit',
+        'submit_label': 'Save Visit',
+        'cancel_url': reverse('patient_detail', args=[patient_id])
+    }
+    return render(request, 'patient_records/add_visit.html', context)
 
 @require_http_methods(["GET", "POST"])
 def add_adls(request, patient_id):

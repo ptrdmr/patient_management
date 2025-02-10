@@ -1,0 +1,72 @@
+{% if patients %}
+    <div class="patient-count" role="status">
+        Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ paginator.count }} patients
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table" role="grid">
+            <thead>
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">DOB</th>
+                    <th scope="col">Gender</th>
+                    <th scope="col">Last Updated</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for patient in patients %}
+                <tr>
+                    <td>
+                        <span class="patient-id" 
+                              data-full-id="{{ patient.patient_number|default:patient.id }}"
+                              role="button"
+                              tabindex="0"
+                              title="Click to show full ID">
+                            ...{{ patient.patient_number|default:patient.id|stringformat:"04d"|slice:"-4:" }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'patient_detail' patient.id %}" 
+                           class="patient-name"
+                           title="View details for {{ patient.first_name }} {{ patient.last_name }}">
+                            {{ patient.last_name }}, {{ patient.first_name }}
+                            {% if patient.middle_name %}
+                                {{ patient.middle_name|first }}.
+                            {% endif %}
+                        </a>
+                    </td>
+                    <td>{{ patient.date_of_birth|date:"M d, Y" }}</td>
+                    <td>{{ patient.get_gender_display }}</td>
+                    <td>
+                        <time datetime="{{ patient.updated_at|date:'c' }}" title="{{ patient.updated_at|date:'F j, Y, P' }}">
+                            {{ patient.updated_at|date:"M d, Y" }}
+                        </time>
+                    </td>
+                    <td class="actions">
+                        <div class="action-buttons">
+                            <a href="{% url 'patient_detail' patient.id %}" 
+                               class="btn btn-sm btn-primary"
+                               title="View details for {{ patient.first_name }} {{ patient.last_name }}">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                                <span class="sr-only">View</span>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include "components/_pagination.html" with param_prefix="page" %}
+{% else %}
+    <div class="no-results" role="alert">
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
+        <p>No patients found matching your search criteria.</p>
+        <button type="button" class="btn secondary" id="clearFilters">
+            Clear Filters
+        </button>
+    </div>
+{% endif %} 
