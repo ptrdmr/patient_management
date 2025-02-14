@@ -1,2 +1,165 @@
 {% extends 'patient_records/base_form.html' %}
-{% block title %}Add Medications{% endblock %}
+{% load form_tags %}
+{% load static %}
+
+{% block title %}Add Medication{% endblock %}
+
+{% block form_content %}
+    {% if form.sections %}
+        {% for section in form.sections %}
+            {% include "patient_records/partials/_form_section.html" with form=form section=section %}
+        {% endfor %}
+    {% else %}
+        {% for field in form %}
+            {% include "patient_records/partials/_form_field.html" with field=field %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('mainForm');
+        const submitButton = form.querySelector('button[type="submit"]');
+        let isSubmitting = false;
+        let formSubmitted = false;  // New flag to track if form was already submitted
+        
+        // Handle dc_date field
+        const dcDateField = form.querySelector('[name="dc_date"]');
+        if (dcDateField) {
+            // Clear dc_date field on page load
+            dcDateField.value = '';
+            
+            // Add event listener to handle changes
+            dcDateField.addEventListener('change', function(e) {
+                if (!e.target.value || e.target.value.trim() === '') {
+                    e.target.value = '';
+                    e.target.setAttribute('data-empty', 'true');
+                } else {
+                    e.target.setAttribute('data-empty', 'false');
+                }
+            });
+            
+            // Prevent browser from auto-filling with today's date
+            dcDateField.addEventListener('focus', function(e) {
+                if (e.target.getAttribute('data-empty') === 'true') {
+                    e.target.value = '';
+                }
+            });
+            
+            // Clear the field if it was auto-filled
+            dcDateField.addEventListener('blur', function(e) {
+                if (e.target.value === e.target.max) {
+                    e.target.value = '';
+                    e.target.setAttribute('data-empty', 'true');
+                }
+            });
+        }
+        
+        // Remove any existing submit event listeners
+        const clonedForm = form.cloneNode(true);
+        form.parentNode.replaceChild(clonedForm, form);
+        
+        // Add our single submit event listener
+        clonedForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Prevent multiple submissions
+            if (isSubmitting || formSubmitted) {
+                return;
+            }
+            
+            // Handle dc_date field before submission
+            const dcDateField = this.querySelector('[name="dc_date"]');
+            if (dcDateField) {
+                if (!dcDateField.value || dcDateField.value.trim() === '' || dcDateField.getAttribute('data-empty') === 'true') {
+                    dcDateField.disabled = true; // Disable empty field so it's not included in form data
+                }
+            }
+            
+            isSubmitting = true;
+            formSubmitted = true;  // Mark form as submitted
+            const submitButton = this.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+            
+            try {
+                const formData = new FormData(this);
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    if (data.success) {
+                        window.location.href = data.redirect || this.dataset.successUrl;
+                        return;
+                    }
+                    
+                    // Clear previous errors and reset submission flags on validation errors
+                    formSubmitted = false;
+                    this.querySelectorAll('.is-invalid').forEach(field => {
+                        field.classList.remove('is-invalid');
+                    });
+                    this.querySelectorAll('.invalid-feedback').forEach(feedback => {
+                        feedback.remove();
+                    });
+                    
+                    // Show new errors
+                    if (data.errors) {
+                        Object.entries(data.errors).forEach(([field, errors]) => {
+                            const fieldElement = this.querySelector(`[name="${field}"]`);
+                            if (fieldElement) {
+                                fieldElement.classList.add('is-invalid');
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'invalid-feedback';
+                                errorDiv.textContent = Array.isArray(errors) ? errors.join(', ') : errors;
+                                fieldElement.parentElement.appendChild(errorDiv);
+                            }
+                        });
+                    }
+                } else {
+                    const html = await response.text();
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    const newForm = tempDiv.querySelector('form');
+                    if (newForm) {
+                        this.innerHTML = newForm.innerHTML;
+                        formSubmitted = false;  // Reset flag if form needs to be resubmitted
+                    }
+                }
+            } catch (error) {
+                console.error('Form submission error:', error);
+                formSubmitted = false;  // Reset flag on error
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger mt-3';
+                alertDiv.textContent = 'An error occurred while saving. Please try again.';
+                this.insertBefore(alertDiv, this.firstChild);
+            } finally {
+                isSubmitting = false;
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                
+                // Re-enable dc_date field if it was disabled
+                if (dcDateField && dcDateField.disabled) {
+                    dcDateField.disabled = false;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

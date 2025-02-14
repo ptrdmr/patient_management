@@ -7,13 +7,14 @@ import datetime
 import re
 
 from .widgets import ICDCodeWidget, PhoneNumberWidget
+from .forms.base import MedicalBaseForm, SectionedMedicalForm
 from .models import (
     Patient,
     Provider,
     Vitals,
     CmpLabs,
     CbcLabs,
-    ClinicalNotes,
+    ClinicalNote,
     PatientNote,
     NoteTag,
     NoteAttachment,
@@ -28,113 +29,7 @@ from .models import (
     RecordRequestLog
 )
 
-# Move these base classes to the top of the file
-class BaseForm(forms.ModelForm):
-    MEDICAL_VALIDATION_RULES = {
-        'blood_pressure': {
-            'pattern': r'^\d{2,3}\/\d{2,3}$',
-            'message': 'Enter blood pressure as systolic/diastolic (e.g., 120/80)'
-        },
-        'temperature': {
-            'min': '95',
-            'max': '108',
-            'step': '0.1',
-            'message': 'Temperature must be between 95°F and 108°F'
-        },
-        'pulse': {
-            'min': '40',
-            'max': '200',
-            'message': 'Pulse must be between 40 and 200 BPM'
-        },
-        'respiratory_rate': {
-            'min': '8',
-            'max': '40',
-            'message': 'Respiratory rate must be between 8 and 40 breaths/min'
-        },
-        'height': {
-            'min': '24',
-            'max': '96',
-            'message': 'Height must be between 24 and 96 inches'
-        },
-        'weight': {
-            'min': '2',
-            'max': '1000',
-            'message': 'Weight must be between 2 and 1000 pounds'
-        }
-    }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setup_fields()
-
-    def setup_fields(self):
-        """Add common attributes and validation rules to fields"""
-        for field_name, field in self.fields.items():
-            # Existing attributes
-            css_classes = field.widget.attrs.get('class', '')
-            field.widget.attrs['class'] = f'form-control {css_classes}'.strip()
-            
-            # Add validation rules based on field type
-            if field.required:
-                field.widget.attrs['required'] = 'required'
-
-            # Date field handling
-            if isinstance(field, forms.DateField):
-                field.widget = forms.DateInput(
-                    attrs={
-                        'type': 'date',
-                        'class': 'form-control date-input',
-                        'max': datetime.date.today().isoformat() if not field_name.startswith(('dc_', 'due_', 'target_')) else None
-                    }
-                )
-            
-            # Phone field handling
-            if field_name in ['phone', 'fax', 'mobile', 'emergency_phone', 
-                             'work_phone', 'home_phone', 'patient_phone', 
-                             'poa_contact']:
-                field.widget = PhoneNumberWidget(
-                    attrs=field.widget.attrs,
-                    country_selector=True if field_name in ['phone', 'patient_phone'] else False
-                )
-
-            # Add field-specific validation
-            if field_name == 'ssn':
-                field.widget.attrs['pattern'] = r'^\d{3}-?\d{2}-?\d{4}$'
-                field.widget.attrs['data-validation-message'] = 'Please enter a valid SSN (XXX-XX-XXXX)'
-            
-            # Add medical-specific validation
-            if field_name in self.MEDICAL_VALIDATION_RULES:
-                rules = self.MEDICAL_VALIDATION_RULES[field_name]
-                
-                if 'pattern' in rules:
-                    field.widget.attrs['pattern'] = rules['pattern']
-                if 'min' in rules:
-                    field.widget.attrs['min'] = rules['min']
-                if 'max' in rules:
-                    field.widget.attrs['max'] = rules['max']
-                if 'step' in rules:
-                    field.widget.attrs['step'] = rules['step']
-                
-                field.widget.attrs['data-validation-message'] = rules['message']
-
-    @property
-    def sections(self):
-        """Override this in form classes that need sections"""
-        return None
-
-class SectionedForm(BaseForm):
-    """Base class for forms that use sections"""
-    
-    def get_sections(self):
-        """Override this method to define form sections"""
-        return []
-
-    @property
-    def sections(self):
-        return self.get_sections()
-
-# Then your existing form classes follow...
-class ProviderForm(SectionedForm):
+class ProviderForm(SectionedMedicalForm):
     class Meta:
         model = Provider
         fields = ['registration_date', 'provider', 'practice', 'address', 'city', 'state', 'zip_code', 'fax', 'phone', 'source', 'is_active']
@@ -219,7 +114,7 @@ class ProviderForm(SectionedForm):
             instance.save()
         return instance
 
-class DiagnosisForm(SectionedForm):
+class DiagnosisForm(SectionedMedicalForm):
     class Meta:
         model = Diagnosis
         fields = ['icd_code', 'diagnosis', 'date', 'notes', 'source']
@@ -249,7 +144,7 @@ class DiagnosisForm(SectionedForm):
             raise forms.ValidationError('Future dates are not allowed.')
         return date
 
-class VisitsForm(BaseForm):
+class VisitsForm(SectionedMedicalForm):
     class Meta:
         model = Visits
         fields = [
@@ -288,7 +183,7 @@ class VisitsForm(BaseForm):
             }
         ]
 
-class VitalsForm(SectionedForm):
+class VitalsForm(SectionedMedicalForm):
     class Meta:
         model = Vitals
         fields = ['date', 'blood_pressure', 'temperature', 'spo2', 'pulse', 
@@ -341,7 +236,7 @@ class VitalsForm(SectionedForm):
             }
         ]
 
-class CMPLabForm(SectionedForm):
+class CMPLabForm(SectionedMedicalForm):
     class Meta:
         model = CmpLabs
         fields = [
@@ -374,7 +269,7 @@ class CMPLabForm(SectionedForm):
             }
         ]
 
-class CBCLabForm(SectionedForm):
+class CBCLabForm(SectionedMedicalForm):
     class Meta:
         model = CbcLabs
         fields = [
@@ -407,7 +302,7 @@ class CBCLabForm(SectionedForm):
             }
         ]
 
-class SymptomsForm(SectionedForm):
+class SymptomsForm(SectionedMedicalForm):
     class Meta:
         model = Symptoms
         fields = ['date', 'symptom', 'notes', 'source', 'person_reporting']
@@ -426,7 +321,7 @@ class SymptomsForm(SectionedForm):
             }
         ]
 
-class MedicationsForm(SectionedForm):
+class MedicationsForm(SectionedMedicalForm):
     class Meta:
         model = Medications
         fields = ['date_prescribed', 'drug', 'dose', 'route', 'frequency', 'prn', 'dc_date', 'notes']
@@ -489,7 +384,7 @@ class MedicationsForm(SectionedForm):
             }
         ]
 
-class MeasurementsForm(SectionedForm):
+class MeasurementsForm(SectionedMedicalForm):
     class Meta:
         model = Measurements
         fields = ['date', 'weight', 'nutritional_intake', 'mac', 'fast', 'pps', 'plof', 'source']
@@ -518,7 +413,7 @@ class MeasurementsForm(SectionedForm):
             }
         ]
 
-class AdlsForm(SectionedForm):
+class AdlsForm(SectionedMedicalForm):
     class Meta:
         model = Adls
         fields = ['date', 'ambulation', 'continence', 'transfer', 'dressing', 'feeding', 'bathing', 'notes', 'source']
@@ -551,7 +446,7 @@ class AdlsForm(SectionedForm):
             }
         ]
 
-class ImagingForm(SectionedForm):
+class ImagingForm(SectionedMedicalForm):
     class Meta:
         model = Imaging
         fields = ['date', 'type', 'notes', 'source']
@@ -579,7 +474,7 @@ class ImagingForm(SectionedForm):
             }
         ]
 
-class OccurrencesForm(SectionedForm):
+class OccurrencesForm(SectionedMedicalForm):
     class Meta:
         model = Occurrences
         fields = '__all__'
@@ -608,7 +503,7 @@ class OccurrencesForm(SectionedForm):
             }
         ]
 
-class RecordRequestLogForm(SectionedForm):
+class RecordRequestLogForm(SectionedMedicalForm):
     class Meta:
         model = RecordRequestLog
         fields = ['date', 'request_type', 'purpose', 'records_requested', 'source']
@@ -627,7 +522,7 @@ class RecordRequestLogForm(SectionedForm):
             }
         ]
 
-class PatientForm(ModelForm):
+class PatientForm(MedicalBaseForm):
     class Meta:
         model = Patient
         fields = [
@@ -644,7 +539,10 @@ class PatientForm(ModelForm):
             'insurance_info'
         ]
         widgets = {
-            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'date_of_birth': forms.DateInput(attrs={
+                'type': 'date',
+                'max': timezone.now().date().isoformat()
+            }),
             'address': forms.Textarea(attrs={'rows': 3}),
             'emergency_contact': forms.Textarea(attrs={'rows': 3}),
             'insurance_info': forms.Textarea(attrs={'rows': 3}),
@@ -652,10 +550,18 @@ class PatientForm(ModelForm):
         help_texts = {
             'patient_number': 'External patient identifier',
             'emergency_contact': 'Name and contact information for emergency contact',
-            'insurance_info': 'Insurance provider and policy details'
+            'insurance_info': 'Insurance provider and policy details',
+            'date_of_birth': 'Date of birth cannot be in the future'
         }
 
-class PatientNoteForm(SectionedForm):
+    def clean_date_of_birth(self):
+        """Validate that date of birth is not in the future."""
+        date_of_birth = self.cleaned_data.get('date_of_birth')
+        if date_of_birth and date_of_birth > timezone.now().date():
+            raise forms.ValidationError("Date of birth cannot be in the future.")
+        return date_of_birth
+
+class PatientNoteForm(SectionedMedicalForm):
     tags = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -720,7 +626,7 @@ class PatientNoteForm(SectionedForm):
             }
         ]
 
-class NoteAttachmentForm(forms.ModelForm):
+class NoteAttachmentForm(MedicalBaseForm):
     class Meta:
         model = NoteAttachment
         fields = ['file']

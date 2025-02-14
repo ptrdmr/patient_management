@@ -18,8 +18,8 @@ class BaseModel(models.Model):
 class BasePatientModel(BaseModel):
     """Base model for all patient-related models."""
 
-    patient = models.ForeignKey('patient.Patient', on_delete=models.CASCADE)
-    source = models.CharField(max_length=100, help_text="Source system or method of data entry")
+    patient = models.ForeignKey('patient_records.Patient', on_delete=models.CASCADE)
+    source = models.CharField(max_length=100, default='manual', help_text="Source system or method of data entry")
     date = models.DateField(help_text="Date of the record")
 
     class Meta:
@@ -29,6 +29,19 @@ class BasePatientModel(BaseModel):
             models.Index(fields=['patient', '-date']),
             models.Index(fields=['-date']),
         ]
+
+    def save(self, *args, **kwargs):
+        """Override save to handle event sourcing."""
+        no_events = kwargs.pop('no_events', False)
+        super().save(*args, **kwargs)
+        
+        if not no_events:
+            self._create_event()
+
+    def _create_event(self):
+        """Create an event for this model instance."""
+        # This method should be overridden by child classes
+        pass
 
 
 class BaseReadModel(models.Model):

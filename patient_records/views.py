@@ -1,47 +1,62 @@
+"""Views for patient records."""
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.core.paginator import Paginator
-from django.urls import reverse
-from .models import *
-from .forms import *  # We'll create these forms next
-from .event_sourcing.constants import *
-import datetime
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.contrib.auth import logout
-from django.urls import reverse_lazy
-from django.http import JsonResponse
-import csv
-from pathlib import Path
-from django.views.decorators.http import require_GET
-from django.contrib.auth.decorators import user_passes_test
-from django.template.loader import render_to_string
-from django.core.exceptions import ObjectDoesNotExist
-import logging
-from django.core.paginator import PageNotAnInteger, EmptyPage
-from django.http import HttpResponse
-from django.db import connection
-import datetime
-from django.forms import model_to_dict
-from django.core.exceptions import ValidationError
-from django.views.decorators.csrf import csrf_exempt
-from django.core.serializers.json import DjangoJSONEncoder
-import json
-from django.db import transaction
-import decimal
-from django.db.models import Model, Q, Prefetch
-from typing import Optional, Dict, Any
-from django.views.decorators.http import require_http_methods
-from .forms import VisitsForm, AdlsForm, ImagingForm, RecordRequestLogForm
-from django.contrib.contenttypes.models import ContentType
-from django.utils import timezone
-from .event_sourcing.event_store import EventStoreService
-from .models import ClinicalReadModel
+from django.core.paginator import Paginator
+from django.urls import reverse
 from django.core.cache import cache
+from django.db.models import Q
+from django.utils import timezone
+from django.views.decorators.http import require_http_methods, require_GET
+from django.http import JsonResponse
+from django.forms.models import model_to_dict
+from django.core.exceptions import ValidationError
+import logging
+import json
+import datetime
+import decimal
 import uuid
+from typing import Dict, Optional, Any
+from django.db.models import Model
+from django.contrib.auth.models import User
+from patient_records.models import AuditTrail
 
-# Initialize the logger for this module
-logger = logging.getLogger('patient_records')  # Note: use the specific logger name we defined in settings.py
+# Import models explicitly instead of using wildcard
+from .models.patient import Patient, Provider
+from .models.clinical import (
+    Vitals, Diagnosis, Medications, PatientNote, NoteTag,
+    CmpLabs, CbcLabs, Symptoms, Imaging, Adls, Occurrences,
+    ClinicalNote, Measurements, Visits
+)
+from .models.audit import AuditTrail, EventStore, RecordRequestLog
+from .models.read import ClinicalReadModel, PatientReadModel, LabResultsReadModel
+
+# Import forms
+from .forms import (
+    PatientForm, 
+    ProviderForm, 
+    VitalsForm,
+    CMPLabForm, 
+    CBCLabForm, 
+    PatientNoteForm,
+    NoteAttachmentForm, 
+    MeasurementsForm,
+    SymptomsForm, 
+    ImagingForm, 
+    AdlsForm,
+    OccurrencesForm, 
+    DiagnosisForm, 
+    VisitsForm,
+    MedicationsForm, 
+    RecordRequestLogForm,
+    PatientSearchForm
+)
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
@@ -70,6 +85,27 @@ def serialize_model_data(record_dict: Dict) -> Dict:
             serialized[key] = value
     return serialized
 
+def serialize_model_instance(
+    record: Model,
+    exclude_fields: list = None,
+    include_fields: list = None
+) -> Dict:
+    """Serialize model instance for JSON response."""
+    serialized = {}
+    for field in record._meta.fields:
+        if field.name in (exclude_fields or []) or (include_fields and field.name not in include_fields):
+            continue
+        value = getattr(record, field.name)
+        if isinstance(value, (datetime.date, datetime.datetime)):
+            serialized[field.name] = value.isoformat()
+        elif isinstance(value, decimal.Decimal):
+            serialized[field.name] = float(value)
+        elif isinstance(value, uuid.UUID):
+            serialized[field.name] = str(value)
+        else:
+            serialized[field.name] = value
+    return serialized
+
 def create_audit_trail(
     record: Model,
     action: str,
@@ -80,38 +116,18 @@ def create_audit_trail(
 ) -> AuditTrail:
     """
     Create an audit trail entry with enhanced logging
-    
-    # VICTORY_TAG_20231118: This function successfully handles:
-    # - All data types including dates and decimals
-    # - Patient vs non-patient records
-    # - Full audit trail creation
-    # - Proper error logging
-    # DO NOT REMOVE - Critical implementation notes
     """
     try:
         model_name = record_type or record.__class__.__name__.upper()
         logger.info(f"Creating audit trail - Action: {action}, Model: {model_name}, Record ID: {record.id}")
         
-        # Determine identifier
-        if hasattr(record, 'patient'):
-            identifier = f"{record.patient.patient_number} - {record.patient.first_name} {record.patient.last_name}"
-        elif isinstance(record, Patient):
-            identifier = f"{record.patient_number} - {record.first_name} {record.last_name}"
-        elif isinstance(record, Provider):
-            identifier = f"Provider: {record.provider}"
-        else:
-            identifier = "N/A"
-            
-        logger.debug(f"Audit identifier: {identifier}")
-
         # Serialize the values before storage
         previous_values = serialize_model_data(previous_values) if previous_values else {}
         new_values = serialize_model_data(new_values) if new_values else {}
 
         # Create audit trail
         audit = AuditTrail.objects.create(
-            patient=None if isinstance(record, Patient) else getattr(record, 'patient', None),
-            patient_identifier=identifier,
+            patient=record if isinstance(record, Patient) else None,
             action=action,
             record_type=model_name,
             user=user,
@@ -141,15 +157,13 @@ def add_patient(request):
     if request.method == 'POST':
         form = PatientForm(request.POST)
         if form.is_valid():
-            patient = form.save(commit=False)  # Don't save to DB yet
-            patient.date = datetime.date.today()  # Set the date field
-            patient.save()  # Now save to DB
+            patient = form.save()  # Save directly since no modifications needed
             
             # Create audit trail with proper record type
             create_audit_trail(
                 record=patient,
-                action='CREATE',
                 user=request.user,
+                action='CREATE',
                 new_values=model_to_dict(patient)
             )
             
@@ -282,54 +296,92 @@ def patient_detail(request, patient_id):
     Display detailed patient information with optimized queries and caching
     """
     try:
-        cache_key = f'patient_detail:{patient_id}'
-        cached_response = cache.get(cache_key)
+        logger.info(f"Loading patient detail for ID: {patient_id}")
         
-        if cached_response is not None and not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return cached_response
-            
         # Get patient with optimized queries
-        patient = Patient.objects.select_related().get(id=patient_id)
+        patient = get_object_or_404(Patient, id=patient_id)
+        logger.info(f"Found patient: {patient.first_name} {patient.last_name}")
         
         # Get all related data in optimized queries
-        latest_vitals = Vitals.objects.filter(
-            patient=patient
-        ).select_related().order_by('-date').first()
+        try:
+            # Get recent vitals with proper ordering
+            recent_vitals = Vitals.objects.filter(
+                patient=patient
+            ).select_related('patient').order_by('-date')[:10]
+            
+            logger.info(f"Found {recent_vitals.count()} recent vitals records")
+            if recent_vitals:
+                logger.info(f"Most recent vitals from {recent_vitals[0].date}")
+            else:
+                logger.info("No vitals found for patient")
+        except Exception as e:
+            logger.error(f"Error querying vitals: {str(e)}")
+            recent_vitals = Vitals.objects.none()
         
-        active_diagnoses = Diagnosis.objects.filter(
-            patient=patient
-        ).select_related('provider').order_by('-date')
+        try:
+            active_diagnoses = Diagnosis.objects.filter(
+                patient=patient
+            ).select_related('provider').order_by('-date')
+            logger.info(f"Found {active_diagnoses.count()} diagnoses")
+        except Exception as e:
+            logger.error(f"Error querying diagnoses: {str(e)}")
+            active_diagnoses = Diagnosis.objects.none()
         
-        current_medications = Medications.objects.filter(
-            patient=patient
-        ).filter(
-            Q(dc_date__isnull=True) | Q(dc_date__gt=timezone.now().date())
-        ).select_related().order_by('-date_prescribed')
+        try:
+            current_medications = Medications.objects.filter(
+                patient=patient
+            ).filter(
+                Q(dc_date__isnull=True) | Q(dc_date__gt=timezone.now().date())
+            ).select_related().order_by('-date_prescribed')
+            logger.info(f"Found {current_medications.count()} current medications")
+        except Exception as e:
+            logger.error(f"Error querying medications: {str(e)}")
+            current_medications = Medications.objects.none()
         
-        recent_activities = AuditTrail.objects.filter(
-            patient=patient
-        ).select_related('user').order_by('-timestamp')[:5]
+        try:
+            recent_activities = EventStore.objects.filter(
+                aggregate_id=str(patient_id),
+                event_type__in=['RECORD_CREATED', 'RECORD_UPDATED', 'STATUS_CHANGED']
+            ).order_by('-timestamp')[:10]
+            logger.info("Successfully queried recent activities")
+        except Exception as e:
+            logger.error(f"Error querying audit trail: {str(e)}")
+            recent_activities = EventStore.objects.none()
         
-        notes = PatientNote.objects.filter(
-            patient=patient
-        ).select_related('created_by').prefetch_related(
-            'tags',
-            'attachments'
-        ).order_by('-is_pinned', '-created_at')
+        try:
+            notes = PatientNote.objects.filter(
+                patient=patient
+            ).select_related('created_by').prefetch_related(
+                'tags',
+                'attachments'
+            ).order_by('-is_pinned', '-created_at')
+            logger.info(f"Found {notes.count()} patient notes")
+        except Exception as e:
+            logger.error(f"Error querying notes: {str(e)}")
+            notes = PatientNote.objects.none()
         
         # Create context with all required data
         context = {
             'patient': patient,
-            'latest_vitals': latest_vitals,
-            'active_diagnoses': active_diagnoses,
+            'recent_vitals': recent_vitals,
             'current_medications': current_medications,
+            'active_diagnoses': active_diagnoses,
+            'cbc_labs': CbcLabs.objects.filter(patient=patient).order_by('-date')[:5],
+            'cmp_labs': CmpLabs.objects.filter(patient=patient).order_by('-date')[:5],
+            'symptoms': Symptoms.objects.filter(patient=patient).order_by('-date')[:5],
+            'visits': Visits.objects.filter(patient=patient).order_by('-date')[:5],
+            'measurements': Measurements.objects.filter(patient=patient).order_by('-date')[:5],
+            'adls': Adls.objects.filter(patient=patient).order_by('-date')[:5],
+            'imaging': Imaging.objects.filter(patient=patient).order_by('-date')[:5],
+            'occurrences': Occurrences.objects.filter(patient=patient).order_by('-date')[:5],
+            'record_requests': RecordRequestLog.objects.filter(patient=patient).order_by('-date')[:5],
             'recent_activities': recent_activities,
+            'notes': notes,
             'breadcrumbs': [
                 {'label': 'Patients', 'url': reverse('patient_list')},
                 {'label': f"{patient.first_name} {patient.last_name}", 'url': None}
             ],
             'note_categories': PatientNote.NOTE_CATEGORIES,
-            'notes': notes
         }
 
         # Handle AJAX tab loading
@@ -339,12 +391,10 @@ def patient_detail(request, patient_id):
             return render(request, template, context)
 
         response = render(request, 'patient_records/patient_detail.html', context)
-        
-        # Cache the response for 2 minutes
-        cache.set(cache_key, response, 120)  # 120 seconds = 2 minutes
         return response
         
     except Patient.DoesNotExist:
+        logger.error(f"Patient not found with ID: {patient_id}")
         messages.error(request, 'Patient not found')
         return redirect('patient_list')
     except Exception as e:
@@ -359,7 +409,7 @@ def add_diagnosis(request, patient_id):
     
     if request.method == 'POST':
         logger.debug(f'Processing diagnosis form submission for patient {patient_id}')
-        form = DiagnosisForm(request.POST)
+        form = DiagnosisForm(request.POST, user=request.user)
         if form.is_valid():
             logger.debug(f'Diagnosis form is valid. Data: {form.cleaned_data}')
             diagnosis = form.save(commit=False)
@@ -390,7 +440,7 @@ def add_diagnosis(request, patient_id):
             logger.error(f'Diagnosis form validation failed. Errors: {form.errors}')
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = DiagnosisForm(initial={'patient': patient})
+        form = DiagnosisForm(initial={'patient': patient}, user=request.user)
     
     context = {
         'form': form,
@@ -413,43 +463,38 @@ def vital_signs_form(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     
     if request.method == "POST":
-        logger.debug(f'Processing vitals form submission for patient {patient_id}')
-        form = VitalsForm(request.POST)
-        if form.is_valid():
-            logger.debug(f'Vitals form is valid. Data: {form.cleaned_data}')
-            vitals = form.save(commit=False)
-            vitals.patient = patient
-            vitals.save()
+        try:
+            logger.debug(f'Processing vitals form submission for patient {patient_id}')
+            logger.debug(f'POST data: {request.POST}')
             
-            # Create event store entry
-            event_store = EventStoreService()
-            event_data = {
-                'patient_id': patient_id,
-                'vitals_id': str(vitals.id),
-                'date': vitals.date.isoformat(),
-                'blood_pressure': vitals.blood_pressure,
-                'temperature': vitals.temperature,
-                'spo2': vitals.spo2,
-                'pulse': vitals.pulse,
-                'respirations': vitals.respirations,
-                'supp_o2': vitals.supp_o2,
-                'pain': vitals.pain,
-                'source': vitals.source
-            }
-            event_store.append_event(
-                aggregate_id=str(patient.id),
-                aggregate_type=CLINICAL_AGGREGATE,
-                event_type=VITALS_RECORDED,
-                event_data=event_data
-            )
-            
-            messages.success(request, 'Vital signs recorded successfully!')
-            return redirect('patient_detail', patient_id=patient_id)
-        else:
-            logger.error(f'Vitals form validation failed. Errors: {form.errors}')
-            messages.error(request, 'Please correct the errors below.')
+            form = VitalsForm(request.POST, user=request.user)
+            if form.is_valid():
+                logger.debug(f'Vitals form is valid. Data: {form.cleaned_data}')
+                vitals = form.save(commit=False)
+                vitals.patient = patient
+                vitals.save()
+                
+                # Create audit trail
+                create_audit_trail(
+                    record=vitals,
+                    user=request.user,
+                    action='CREATE',
+                    new_values=model_to_dict(vitals),
+                    record_type='VITALS'
+                )
+                
+                messages.success(request, 'Vital signs recorded successfully!')
+                return redirect('patient_detail', patient_id=patient_id)
+            else:
+                logger.error(f'Vitals form validation failed. Errors: {form.errors}')
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f'{field}: {error}')
+        except Exception as e:
+            logger.error(f'Error saving vitals: {str(e)}', exc_info=True)
+            messages.error(request, 'An error occurred while saving vitals. Please try again.')
     else:
-        form = VitalsForm()
+        form = VitalsForm(user=request.user)
 
     context = {
         'form': form,
@@ -467,7 +512,7 @@ def add_cmp_labs(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     
     if request.method == 'POST':
-        form = CMPLabForm(request.POST)
+        form = CMPLabForm(request.POST, user=request.user)
         if form.is_valid():
             lab = form.save(commit=False)
             lab.patient = patient
@@ -476,20 +521,19 @@ def add_cmp_labs(request, patient_id):
             
             create_audit_trail(
                 record=lab,
-                action='CREATE',
                 user=request.user,
-                new_values=model_to_dict(lab),
-                record_type='CMP_LAB'
+                action='CREATE',
+                changes={'new_values': model_to_dict(lab), 'record_type': 'CMP_LAB'}
             )
             
             messages.success(request, 'CMP Lab results added successfully!')
             return redirect('patient_detail', patient_id=patient.id)
     else:
-        form = CMPLabForm()
+        form = CMPLabForm(user=request.user)
     
     context = {
         'patient': patient,
-        'cmp_form': form,
+        'form': form,  # Changed from cmp_form to form for consistency
         'breadcrumbs': [
             {'label': 'Patients', 'url': reverse('patient_list')},
             {'label': f"{patient.first_name} {patient.last_name}", 'url': reverse('patient_detail', args=[patient.id])},
@@ -505,7 +549,7 @@ def add_cbc_labs(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     
     if request.method == 'POST':
-        form = CBCLabForm(request.POST)
+        form = CBCLabForm(request.POST, user=request.user)
         if form.is_valid():
             lab = form.save(commit=False)
             lab.patient = patient
@@ -514,20 +558,19 @@ def add_cbc_labs(request, patient_id):
             
             create_audit_trail(
                 record=lab,
-                action='CREATE',
                 user=request.user,
-                new_values=model_to_dict(lab),
-                record_type='CBC_LAB'
+                action='CREATE',
+                changes={'new_values': model_to_dict(lab), 'record_type': 'CBC_LAB'}
             )
             
             messages.success(request, 'CBC Lab results added successfully!')
             return redirect('patient_detail', patient_id=patient.id)
     else:
-        form = CBCLabForm()
+        form = CBCLabForm(user=request.user)
     
     context = {
         'patient': patient,
-        'cbc_form': form,
+        'form': form,  # Changed from cbc_form to form
         'breadcrumbs': [
             {'label': 'Patients', 'url': reverse('patient_list')},
             {'label': f"{patient.first_name} {patient.last_name}", 'url': reverse('patient_detail', args=[patient.id])},
@@ -542,33 +585,91 @@ def add_medications(request, patient_id):
     """Add medications for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
     
-    breadcrumbs = [
-        {'label': 'Patients', 'url': reverse('patient_list')},
-        {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
-        {'label': 'Add Medications', 'url': None}
-    ]
-    
-    if request.method == 'POST':
-        form = MedicationsForm(request.POST)
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         try:
+            # Handle empty dc_date
+            post_data = request.POST.copy()
+            if 'dc_date' in post_data and (not post_data['dc_date'] or post_data['dc_date'].strip() == ''):
+                post_data.pop('dc_date')  # Remove empty dc_date from the data
+            
+            form = MedicationsForm(post_data, user=request.user)
+            
             if form.is_valid():
                 med = form.save(commit=False)
                 med.patient = patient
+                med.date = form.cleaned_data['date_prescribed']
+                # Only set dc_date if it was actually provided
+                med.dc_date = form.cleaned_data.get('dc_date') if 'dc_date' in post_data else None
                 med.save()
+                
+                # Create audit trail
+                create_audit_trail(
+                    record=med,
+                    user=request.user,
+                    action='CREATE',
+                    new_values=model_to_dict(med),
+                    record_type='MEDICATIONS'
+                )
+                
+                messages.success(request, 'Medication added successfully!')
+                return JsonResponse({'success': True, 'redirect': reverse('patient_detail', args=[patient_id])})
+            else:
+                return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
+        except Exception as e:
+            logger.error(f'Error saving medication: {str(e)}', exc_info=True)
+            return JsonResponse({'success': False, 'errors': {'__all__': ['An error occurred while saving medication.']}}, status=500)
+    elif request.method == 'POST':
+        try:
+            # Handle empty dc_date
+            post_data = request.POST.copy()
+            if 'dc_date' in post_data and (not post_data['dc_date'] or post_data['dc_date'].strip() == ''):
+                post_data.pop('dc_date')  # Remove empty dc_date from the data
+            
+            form = MedicationsForm(post_data, user=request.user)
+            
+            if form.is_valid():
+                med = form.save(commit=False)
+                med.patient = patient
+                med.date = form.cleaned_data['date_prescribed']
+                # Only set dc_date if it was actually provided
+                med.dc_date = form.cleaned_data.get('dc_date') if 'dc_date' in post_data else None
+                med.save()
+                
+                # Create audit trail
+                create_audit_trail(
+                    record=med,
+                    user=request.user,
+                    action='CREATE',
+                    new_values=model_to_dict(med),
+                    record_type='MEDICATIONS'
+                )
+                
                 messages.success(request, 'Medication added successfully!')
                 return redirect('patient_detail', patient_id=patient_id)
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f'{field}: {error}')
         except ValidationError as e:
             for field, errors in e.message_dict.items():
                 for error in errors:
-                    form.add_error(field, error)
+                    messages.error(request, f'{field}: {error}')
+        except Exception as e:
+            logger.error(f'Error saving medication: {str(e)}', exc_info=True)
+            messages.error(request, 'An error occurred while saving medication. Please try again.')
     else:
-        form = MedicationsForm(initial={'patient': patient})
+        form = MedicationsForm(initial={'patient': patient}, user=request.user)
     
     context = {
         'form': form,
         'patient': patient,
-        'breadcrumbs': breadcrumbs,
-        'form_title': 'Add Medication'
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Add Medication', 'url': None}
+        ]
     }
     return render(request, 'patient_records/add_medications.html', context)
 
@@ -584,7 +685,7 @@ def add_measurements(request, patient_id):
     ]
     
     if request.method == 'POST':
-        form = MeasurementsForm(request.POST)
+        form = MeasurementsForm(request.POST, user=request.user)
         if form.is_valid():
             measurement = form.save(commit=False)
             measurement.patient = patient
@@ -592,7 +693,7 @@ def add_measurements(request, patient_id):
             messages.success(request, 'Measurements added successfully!')
             return redirect('patient_detail', patient_id=patient_id)
     else:
-        form = MeasurementsForm(initial={'patient': patient})
+        form = MeasurementsForm(initial={'patient': patient}, user=request.user)
     
     context = {
         'form': form,
@@ -614,7 +715,7 @@ def add_adls(request, patient_id):
     ]
     
     if request.method == 'POST':
-        form = AdlsForm(request.POST)
+        form = AdlsForm(request.POST, user=request.user)
         if form.is_valid():
             adls = form.save(commit=False)
             adls.patient = patient
@@ -622,7 +723,7 @@ def add_adls(request, patient_id):
             messages.success(request, 'ADLs added successfully!')
             return redirect('patient_detail', patient_id=patient_id)
     else:
-        form = AdlsForm(initial={'patient': patient})
+        form = AdlsForm(initial={'patient': patient}, user=request.user)
     
     context = {
         'form': form,
@@ -639,7 +740,7 @@ def add_symptoms(request, patient_id):
     
     if request.method == 'POST':
         logger.debug(f'Processing symptoms form submission for patient {patient_id}')
-        form = SymptomsForm(request.POST)
+        form = SymptomsForm(request.POST, user=request.user)
         if form.is_valid():
             logger.debug(f'Symptoms form is valid. Data: {form.cleaned_data}')
             symptoms = form.save(commit=False)
@@ -652,7 +753,7 @@ def add_symptoms(request, patient_id):
             logger.error(f'Symptoms form validation failed. Errors: {form.errors}')
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = SymptomsForm(initial={'patient': patient})
+        form = SymptomsForm(initial={'patient': patient}, user=request.user)
     
     context = {
         'form': form,
@@ -682,7 +783,7 @@ def add_occurrence(request, patient_id):
     ]
     
     if request.method == 'POST':
-        form = OccurrencesForm(request.POST)
+        form = OccurrencesForm(request.POST, user=request.user)
         if form.is_valid():
             occurrence = form.save(commit=False)
             occurrence.patient = patient
@@ -690,7 +791,7 @@ def add_occurrence(request, patient_id):
             messages.success(request, 'Occurrence added successfully!')
             return redirect('patient_detail', patient_id=patient_id)
     else:
-        form = OccurrencesForm(initial={'patient': patient})
+        form = OccurrencesForm(initial={'patient': patient}, user=request.user)
     
     context = {
         'form': form,
@@ -712,7 +813,7 @@ def add_imaging(request, patient_id):
     ]
     
     if request.method == 'POST':
-        form = ImagingForm(request.POST)
+        form = ImagingForm(request.POST, user=request.user)
         if form.is_valid():
             imaging = form.save(commit=False)
             imaging.patient = patient
@@ -720,7 +821,7 @@ def add_imaging(request, patient_id):
             messages.success(request, 'Imaging added successfully!')
             return redirect('patient_detail', patient_id=patient_id)
     else:
-        form = ImagingForm(initial={'patient': patient})
+        form = ImagingForm(initial={'patient': patient}, user=request.user)
     
     context = {
         'form': form,
@@ -792,7 +893,7 @@ def add_record_request(request, patient_id):
     ]
     
     if request.method == 'POST':
-        form = RecordRequestForm(request.POST)
+        form = RecordRequestLogForm(request.POST, user=request.user)
         if form.is_valid():
             record_request = form.save(commit=False)
             record_request.patient = patient
@@ -800,7 +901,7 @@ def add_record_request(request, patient_id):
             messages.success(request, 'Record request added successfully!')
             return redirect('patient_detail', patient_id=patient_id)
     else:
-        form = RecordRequestForm(initial={'patient': patient})
+        form = RecordRequestLogForm(initial={'patient': patient}, user=request.user)
     
     context = {
         'form': form,
@@ -1041,7 +1142,7 @@ def patient_history(request, patient_id):
 def add_visit(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     if request.method == "POST":
-        form = VisitsForm(request.POST)
+        form = VisitsForm(request.POST, user=request.user)
         if form.is_valid():
             visit = form.save(commit=False)
             visit.patient = patient
@@ -1064,7 +1165,7 @@ def add_visit(request, patient_id):
                     'errors': form.errors
                 }, status=400)
     else:
-        form = VisitsForm()
+        form = VisitsForm(user=request.user)
     
     context = {
         'form': form,
@@ -1079,7 +1180,7 @@ def add_visit(request, patient_id):
 def add_adls(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     if request.method == "POST":
-        form = AdlsForm(request.POST)
+        form = AdlsForm(request.POST, user=request.user)
         if form.is_valid():
             adls = form.save(commit=False)
             adls.patient = patient
@@ -1087,7 +1188,7 @@ def add_adls(request, patient_id):
             messages.success(request, 'ADLs recorded successfully!')
             return redirect('patient_detail', patient_id=patient_id)
     else:
-        form = AdlsForm()
+        form = AdlsForm(initial={'patient': patient}, user=request.user)
     
     return render(request, 'patient_records/add_adls.html', {
         'form': form,
@@ -1098,7 +1199,7 @@ def add_adls(request, patient_id):
 def add_imaging(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     if request.method == "POST":
-        form = ImagingForm(request.POST)
+        form = ImagingForm(request.POST, user=request.user)
         if form.is_valid():
             imaging = form.save(commit=False)
             imaging.patient = patient
@@ -1106,7 +1207,7 @@ def add_imaging(request, patient_id):
             messages.success(request, 'Imaging recorded successfully!')
             return redirect('patient_detail', patient_id=patient_id)
     else:
-        form = ImagingForm()
+        form = ImagingForm(initial={'patient': patient}, user=request.user)
     
     return render(request, 'patient_records/add_imaging.html', {
         'form': form,
@@ -1117,7 +1218,7 @@ def add_imaging(request, patient_id):
 def add_record_request(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     if request.method == "POST":
-        form = RecordRequestLogForm(request.POST)
+        form = RecordRequestLogForm(request.POST, user=request.user)
         if form.is_valid():
             record_request = form.save(commit=False)
             record_request.patient = patient
@@ -1125,7 +1226,7 @@ def add_record_request(request, patient_id):
             messages.success(request, 'Record request logged successfully!')
             return redirect('patient_detail', patient_id=patient_id)
     else:
-        form = RecordRequestLogForm()
+        form = RecordRequestLogForm(initial={'patient': patient}, user=request.user)
     
     return render(request, 'patient_records/add_record_request.html', {
         'form': form,
@@ -1405,8 +1506,9 @@ def dashboard_data(request):
         }
         
         # Get recent activities
-        activities = AuditTrail.objects.filter(
-            timestamp__date__range=[start_date, end_date]
+        activities = EventStore.objects.filter(
+            aggregate_id=str(patient_id),
+            event_type__in=['RECORD_CREATED', 'RECORD_UPDATED', 'STATUS_CHANGED']
         ).order_by('-timestamp')[:10]
         activities_data = [{
             'timestamp': activity.timestamp.isoformat(),
@@ -1631,8 +1733,9 @@ def get_dashboard_metrics(request, patient_id):
                 continue
         
         # Get recent activities
-        activities = AuditTrail.objects.filter(
-            patient=patient
+        activities = EventStore.objects.filter(
+            aggregate_id=str(patient_id),
+            event_type__in=['RECORD_CREATED', 'RECORD_UPDATED', 'STATUS_CHANGED']
         ).order_by('-timestamp')[:10]
         
         activities_data = [{
@@ -1707,3 +1810,284 @@ def get_dashboard_metrics(request, patient_id):
             'error': str(e),
             'success': False
         }, status=500)
+
+@login_required
+def patient_section_data(request, patient_id, section):
+    """Load a specific section of patient data."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    template_name = f'patient_records/partials/_{section}.html'
+    
+    context = {
+        'patient': patient,
+    }
+    
+    # Add section-specific data
+    if section == 'visits':
+        context['visits'] = patient.visit_set.all().order_by('-visit_date')
+    elif section == 'medications':
+        context['medications'] = patient.medication_set.all().order_by('-start_date')
+    elif section == 'vitals':
+        context['vitals'] = patient.vitalsigns_set.all().order_by('-recorded_at')[:10]
+    elif section == 'diagnoses':
+        context['diagnoses'] = patient.diagnosis_set.all().order_by('-diagnosed_date')
+    elif section == 'labs':
+        context['cmp_labs'] = patient.cmplabs_set.all().order_by('-recorded_at')[:5]
+        context['cbc_labs'] = patient.cbclabs_set.all().order_by('-recorded_at')[:5]
+    
+    return render(request, template_name, context)
+
+@login_required
+def vitals_list(request, patient_id):
+    """View list of vitals records for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    vitals = Vitals.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'vitals': vitals,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Vitals History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/vitals_list.html', context)
+
+@login_required
+def medications_list(request, patient_id):
+    """View list of medications for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    medications = Medications.objects.filter(patient=patient).order_by('-date_prescribed')
+    
+    context = {
+        'patient': patient,
+        'medications': medications,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Medications History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/medications_list.html', context)
+
+@login_required
+def diagnoses_list(request, patient_id):
+    """View list of diagnoses for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    diagnoses = Diagnosis.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'diagnoses': diagnoses,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Diagnoses History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/diagnoses_list.html', context)
+
+@login_required
+def cbc_labs_list(request, patient_id):
+    """View list of CBC lab results for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    labs = CbcLabs.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'labs': labs,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'CBC Labs History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/cbc_labs_list.html', context)
+
+@login_required
+def cmp_labs_list(request, patient_id):
+    """View list of CMP lab results for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    labs = CmpLabs.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'labs': labs,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'CMP Labs History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/cmp_labs_list.html', context)
+
+@login_required
+def symptoms_list(request, patient_id):
+    """View list of symptoms for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    symptoms = Symptoms.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'symptoms': symptoms,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Symptoms History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/symptoms_list.html', context)
+
+@login_required
+def visits_list(request, patient_id):
+    """View list of visits for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    visits = Visits.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'visits': visits,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Visits History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/visits_list.html', context)
+
+@login_required
+def measurements_list(request, patient_id):
+    """View list of measurements for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    measurements = Measurements.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'measurements': measurements,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Measurements History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/measurements_list.html', context)
+
+@login_required
+def adls_list(request, patient_id):
+    """View list of ADLs for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    adls = Adls.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'adls': adls,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'ADLs History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/adls_list.html', context)
+
+@login_required
+def imaging_list(request, patient_id):
+    """View list of imaging studies for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    imaging = Imaging.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'imaging': imaging,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Imaging History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/imaging_list.html', context)
+
+@login_required
+def occurrences_list(request, patient_id):
+    """View list of occurrences for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    occurrences = Occurrences.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'occurrences': occurrences,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Occurrences History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/occurrences_list.html', context)
+
+@login_required
+def record_requests_list(request, patient_id):
+    """View list of record requests for a patient."""
+    patient = get_object_or_404(Patient, id=patient_id)
+    requests = RecordRequestLog.objects.filter(patient=patient).order_by('-date')
+    
+    context = {
+        'patient': patient,
+        'requests': requests,
+        'breadcrumbs': [
+            {'label': 'Patients', 'url': reverse('patient_list')},
+            {'label': f'Patient {patient.id}', 'url': reverse('patient_detail', args=[patient.id])},
+            {'label': 'Record Requests History', 'url': None}
+        ]
+    }
+    return render(request, 'patient_records/record_requests_list.html', context)
+
+@login_required
+def record_detail(request, record_type, record_id):
+    """Display detailed view of a specific record."""
+    # Map record types to their corresponding models
+    record_models = {
+        'vitals': Vitals,
+        'medications': Medications,
+        'diagnosis': Diagnosis,
+        'cbc_labs': CbcLabs,
+        'cmp_labs': CmpLabs,
+        'symptoms': Symptoms,
+        'visits': Visits,
+        'measurements': Measurements,
+        'adls': Adls,
+        'imaging': Imaging,
+        'occurrences': Occurrences,
+        'record_requests': RecordRequestLog
+    }
+    
+    # Get the appropriate model for the record type
+    model = record_models.get(record_type.lower())
+    if not model:
+        messages.error(request, f'Invalid record type: {record_type}')
+        return redirect('home')
+    
+    # Get the record instance
+    record = get_object_or_404(model, id=record_id)
+    
+    # Ensure user has access to this patient's records
+    if not request.user.is_staff and record.patient.primary_provider != request.user:
+        messages.error(request, 'You do not have permission to view this record')
+        return redirect('home')
+    
+    # Convert record to dictionary for template
+    record_data = serialize_model_instance(record)
+    
+    # Get audit trail for this record
+    audit_trail = AuditTrail.objects.filter(
+        record_type=record_type.upper(),
+        record_id=str(record_id)
+    ).order_by('-created_at')
+    
+    context = {
+        'record': record,
+        'record_data': record_data,
+        'record_type': record_type,
+        'audit_trail': audit_trail,
+        'patient': record.patient
+    }
+    
+    return render(request, 'patient_records/record_detail.html', context)

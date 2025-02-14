@@ -8,7 +8,7 @@ from ..base import BaseModel
 class AuditTrail(BaseModel):
     """Model for tracking changes to patient records."""
 
-    patient = models.ForeignKey('patient.Patient', on_delete=models.SET_NULL, null=True)
+    patient = models.ForeignKey('patient_records.Patient', on_delete=models.SET_NULL, null=True)
     patient_identifier = models.CharField(max_length=100, default="Unknown Patient")
     action = models.CharField(
         max_length=10,

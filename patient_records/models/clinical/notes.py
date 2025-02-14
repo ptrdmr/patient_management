@@ -132,6 +132,6 @@ class NoteAttachment(models.Model):
 
     def save(self, *args, **kwargs):
         """Override save to ensure filename is set."""
-        if not self.filename:
+        if not self.filename and self.file:
             self.filename = self.file.name
         super().save(*args, **kwargs) 

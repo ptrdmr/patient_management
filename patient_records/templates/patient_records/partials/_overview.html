@@ -18,6 +18,48 @@
     <div class="data-card collapsible">
         <div class="card-header">
             <div class="header-content">
+                <h3>Vital Signs History</h3>
+                <a href="{% url 'add_vitals' patient.id %}" class="btn btn-primary btn-sm">Add Vitals</a>
+            </div>
+            <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-content">
+            {% if recent_vitals %}
+                {% for vital in recent_vitals %}
+                    <div class="vital-record">
+                        <div class="vital-header">
+                            <strong>Date:</strong> {{ vital.date|date:"M d, Y" }}
+                            <a href="#" class="btn btn-link btn-sm edit-vital" data-vital-id="{{ vital.id }}">Edit</a>
+                        </div>
+                        <div class="vital-details">
+                            <p><strong>Blood Pressure:</strong> {{ vital.blood_pressure }} mmHg</p>
+                            <p><strong>Temperature:</strong> {{ vital.temperature }}°F</p>
+                            <p><strong>SpO2:</strong> {{ vital.spo2 }}%</p>
+                            <p><strong>Pulse:</strong> {{ vital.pulse }} bpm</p>
+                            <p><strong>Respirations:</strong> {{ vital.respirations }} breaths/min</p>
+                            {% if vital.supp_o2 %}
+                                <p><strong>Supplemental O2:</strong> {{ vital.supp_o2 }}</p>
+                            {% endif %}
+                            {% if vital.pain %}
+                                <p><strong>Pain Level:</strong> {{ vital.pain }}/10</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if not forloop.last %}<hr>{% endif %}
+                {% endfor %}
+                <div class="view-all-link">
+                    <a href="{% url 'vitals_list' patient.id %}">View All Vitals</a>
+                </div>
+            {% else %}
+                <p>No vitals recorded</p>
+                <a href="{% url 'add_vitals' patient.id %}" class="btn btn-primary">Add First Vital Signs</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="data-card collapsible">
+        <div class="card-header">
+            <div class="header-content">
                 <h3>Contact Information</h3>
             </div>
             <span class="collapse-icon">▼</span>

@@ -55,15 +55,12 @@ class Symptoms(BasePatientModel):
                 'severity': 'Severity must be between 1 and 5'
             })
 
-    def save(self, *args, **kwargs):
-        """Override save to handle event sourcing."""
+    def _create_event(self):
+        """Create event for symptom changes."""
         from ..audit.events import EventStore
         from ..audit.constants import CLINICAL_AGGREGATE, SYMPTOMS_ADDED, SYMPTOMS_UPDATED
 
         is_new = self._state.adding
-        super().save(*args, **kwargs)
-
-        # Create event
         event_type = SYMPTOMS_ADDED if is_new else SYMPTOMS_UPDATED
         event_data = {
             'patient_id': str(self.patient.id),
@@ -74,11 +71,16 @@ class Symptoms(BasePatientModel):
             'provider_id': str(self.provider.id) if self.provider else None
         }
 
+        # Get the next sequence number
+        from patient_records.management.commands.generate_test_data import Command
+        sequence = Command()._get_next_sequence(CLINICAL_AGGREGATE, self.patient.id)
+
         EventStore.objects.create(
             aggregate_type=CLINICAL_AGGREGATE,
             aggregate_id=str(self.patient.id),
             event_type=event_type,
-            event_data=event_data
+            event_data=event_data,
+            sequence=sequence
         )
 
     @property

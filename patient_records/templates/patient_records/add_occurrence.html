@@ -1,0 +1,16 @@
+{% extends 'patient_records/base_form.html' %}
+{% load form_tags %}
+
+{% block title %}Add Occurrence{% endblock %}
+
+{% block form_content %}
+    {% if form.sections %}
+        {% for section in form.sections %}
+            {% include "patient_records/partials/_form_section.html" with form=form section=section %}
+        {% endfor %}
+    {% else %}
+        {% for field in form %}
+            {% include "patient_records/partials/_form_field.html" with field=field %}
+        {% endfor %}
+    {% endif %}
+{% endblock %} 

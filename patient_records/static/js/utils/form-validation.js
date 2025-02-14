@@ -204,14 +204,28 @@ class FormValidator {
                 }
             });
             
-            const data = await response.json();
-            if (data.success) {
-                this.showFormSuccess(data.message || 'Successfully saved!');
-                if (data.redirect) {
-                    window.location.href = data.redirect;
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
+                if (data.success) {
+                    this.showFormSuccess(data.message || 'Successfully saved!');
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    }
+                } else {
+                    this.handleErrors(data.errors);
                 }
             } else {
-                this.handleErrors(data.errors);
+                // Handle regular redirect
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else if (response.ok) {
+                    // If no redirect but successful, reload the page
+                    window.location.reload();
+                } else {
+                    this.showFormError('An error occurred while saving. Please try again.');
+                }
             }
         } catch (error) {
             this.showFormError('An error occurred while saving. Please try again.');

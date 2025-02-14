@@ -11,7 +11,7 @@ from .clinical import (
     Vitals,
     CmpLabs,
     CbcLabs,
-    ClinicalNotes,
+    ClinicalNote,
     PatientNote,
     NoteTag,
     NoteAttachment,
@@ -28,6 +28,9 @@ from .clinical import (
 # Audit models
 from .audit import EventStore, AuditTrail, RecordRequestLog
 
+# Read models
+from .read import ClinicalReadModel, PatientReadModel
+
 __all__ = [
     # Base models
     'BaseModel',
@@ -42,7 +45,7 @@ __all__ = [
     'Vitals',
     'CmpLabs',
     'CbcLabs',
-    'ClinicalNotes',
+    'ClinicalNote',
     'PatientNote',
     'NoteTag',
     'NoteAttachment',
@@ -58,5 +61,9 @@ __all__ = [
     # Audit models
     'EventStore',
     'AuditTrail',
-    'RecordRequestLog'
+    'RecordRequestLog',
+    
+    # Read models
+    'ClinicalReadModel',
+    'PatientReadModel'
 ] 

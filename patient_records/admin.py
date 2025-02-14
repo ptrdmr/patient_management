@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import *
+from .models import (
+    Patient, Provider, Vitals, CmpLabs, CbcLabs,
+    ClinicalNote, PatientNote, NoteTag, NoteAttachment,
+    Measurements, Symptoms, Imaging, Adls, Occurrences,
+    Diagnosis, Visits, Medications, RecordRequestLog
+)
 
 @admin.register(Patient)
 class PatientAdmin(admin.ModelAdmin):
@@ -25,19 +30,19 @@ class PatientAdmin(admin.ModelAdmin):
 
 # Register other models
 admin.site.register(Provider)
-admin.site.register(Diagnosis)
-admin.site.register(Visits)
 admin.site.register(Vitals)
 admin.site.register(CmpLabs)
 admin.site.register(CbcLabs)
-admin.site.register(Symptoms)
-admin.site.register(Medications)
+admin.site.register(ClinicalNote)
+admin.site.register(PatientNote)
+admin.site.register(NoteTag)
+admin.site.register(NoteAttachment)
 admin.site.register(Measurements)
+admin.site.register(Symptoms)
 admin.site.register(Imaging)
 admin.site.register(Adls)
 admin.site.register(Occurrences)
+admin.site.register(Diagnosis)
+admin.site.register(Visits)
+admin.site.register(Medications)
 admin.site.register(RecordRequestLog)
-admin.site.register(ClinicalNotes)
-admin.site.register(NoteTag)
-admin.site.register(PatientNote)
-admin.site.register(NoteAttachment)

@@ -2,6 +2,7 @@
 
 from django.db import models
 from ..base import BaseModel
+from django.db.models import Max
 
 
 class Patient(BaseModel):
@@ -19,6 +20,14 @@ class Patient(BaseModel):
         ('N', 'Prefer not to say')
     ]
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    primary_provider = models.ForeignKey(
+        'patient_records.Provider',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='primary_patients',
+        help_text="Primary healthcare provider for this patient"
+    )
     address = models.TextField()
     phone = models.CharField(max_length=20)
     email = models.EmailField(blank=True, null=True)
@@ -31,7 +40,8 @@ class Patient(BaseModel):
             models.Index(fields=['last_name', 'first_name']),
             models.Index(fields=['date_of_birth']),
             models.Index(fields=['phone']),
-            models.Index(fields=['email'])
+            models.Index(fields=['email']),
+            models.Index(fields=['primary_provider'])
         ]
 
     def __str__(self):
@@ -46,6 +56,14 @@ class Patient(BaseModel):
         is_new = self._state.adding
         super().save(*args, **kwargs)
 
+        # Get the next sequence number
+        last_sequence = EventStore.objects.filter(
+            aggregate_type=PATIENT_AGGREGATE,
+            aggregate_id=str(self.id)
+        ).aggregate(Max('sequence'))['sequence__max']
+        
+        next_sequence = (last_sequence or 0) + 1
+
         # Create event
         event_type = PATIENT_REGISTERED if is_new else PATIENT_UPDATED
         event_data = {
@@ -53,12 +71,14 @@ class Patient(BaseModel):
             'patient_number': self.patient_number,
             'name': f"{self.first_name} {self.last_name}",
             'date_of_birth': self.date_of_birth.isoformat(),
-            'gender': self.gender
+            'gender': self.gender,
+            'primary_provider_id': str(self.primary_provider.id) if self.primary_provider else None
         }
 
         EventStore.objects.create(
             aggregate_type=PATIENT_AGGREGATE,
             aggregate_id=str(self.id),
             event_type=event_type,
-            event_data=event_data
+            event_data=event_data,
+            sequence=next_sequence
         ) 

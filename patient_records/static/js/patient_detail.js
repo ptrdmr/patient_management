@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const detailContent = document.getElementById('detailContent');
     let currentSection = null;
 
+    // Show overview by default
+    showOverview();
+
     // Add click event listeners to dropdown items
     recordDetailsDropdown.forEach(item => {
         item.addEventListener('click', function(e) {
@@ -24,7 +27,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Load the content
             fetch(`/patient/${getPatientId()}/section/${section}/`)
-                .then(response => response.text())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
                 .then(html => {
                     detailContent.innerHTML = html;
                     initializeSection(section);
@@ -43,14 +51,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showOverview() {
         currentSection = null;
-        patientOverview.style.display = 'block';
-        detailContent.style.display = 'none';
+        if (patientOverview) {
+            patientOverview.style.display = 'block';
+            patientOverview.style.visibility = 'visible';
+        }
+        if (detailContent) {
+            detailContent.style.display = 'none';
+        }
     }
 
     // Helper function to get patient ID from the URL or data attribute
     function getPatientId() {
         const urlParts = window.location.pathname.split('/');
-        return urlParts[urlParts.indexOf('patient') + 1];
+        const patientIndex = urlParts.indexOf('patient');
+        return patientIndex !== -1 ? urlParts[patientIndex + 1] : null;
     }
 
     // Initialize section-specific functionality

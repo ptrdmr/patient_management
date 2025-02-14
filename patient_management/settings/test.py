@@ -31,6 +31,10 @@ CACHES = {
 
 # Disable static file handling during tests
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
 
 # Configure media files for testing
 MEDIA_ROOT = os.path.join(BASE_DIR, 'test_media')

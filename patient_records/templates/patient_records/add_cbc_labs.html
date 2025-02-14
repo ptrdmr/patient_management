@@ -4,12 +4,12 @@
 {% block title %}Add CBC Lab Results{% endblock %}
 
 {% block form_content %}
-    {% if cbc_form.sections %}
-        {% for section in cbc_form.sections %}
-            {% include "patient_records/partials/_form_section.html" with form=cbc_form section=section %}
+    {% if form.sections %}
+        {% for section in form.sections %}
+            {% include "patient_records/partials/_form_section.html" with form=form section=section %}
         {% endfor %}
     {% else %}
-        {% for field in cbc_form %}
+        {% for field in form %}
             {% include "patient_records/partials/_form_field.html" with field=field %}
         {% endfor %}
     {% endif %}

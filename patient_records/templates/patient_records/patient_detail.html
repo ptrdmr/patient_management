@@ -3,8 +3,6 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/shared/notes-modal.css' %}">
-<link rel="stylesheet" href="{% static 'css/patient_overview.css' %}">
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 <style>
 .content-wrapper {
     display: flex;
@@ -25,181 +23,511 @@
     padding: 1rem;
 }
 
-#patientOverview {
-    display: block !important;
-    visibility: visible !important;
+.patient-header {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.overview-section {
-    margin-bottom: 2rem;
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.records-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.record-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1rem;
+}
+
+.record-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.record-card h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #2c3e50;
+}
+
+.record-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.record-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.record-item {
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.record-item:hover {
+    background-color: #f8f9fa;
+}
+
+.record-item:last-child {
+    border-bottom: none;
+}
+
+.record-date {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.btn-add {
+    padding: 0.25rem 0.5rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-add:hover {
+    background: #45a049;
+}
+
+.btn-view-all {
+    padding: 0.25rem 0.5rem;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.btn-view-all:hover {
+    background: #1e88e5;
+}
+
+.vital-record {
+    padding: 15px 0;
+}
+
+.vital-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.vital-details {
+    padding-left: 15px;
+    border-left: 3px solid #e0e0e0;
+}
+
+.vital-details p {
+    margin: 5px 0;
+}
+
+.view-all-link {
+    margin-top: 15px;
+    text-align: right;
+}
+
+hr {
+    margin: 15px 0;
+    border: 0;
+    border-top: 1px solid #e0e0e0;
+}
+
+.btn-link {
+    padding: 0;
+    color: #007bff;
+    text-decoration: none;
+}
+
+.btn-link:hover {
+    color: #0056b3;
+    text-decoration: underline;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="content-header">
+<div class="patient-header">
     <div class="header-info">
         <h1>{{ patient.first_name }} {{ patient.last_name }}</h1>
         <div class="patient-meta">
             <span>DOB: {{ patient.date_of_birth|date:"M d, Y" }}</span>
+            <span>•</span>
             <span>Gender: {{ patient.get_gender_display }}</span>
-        </div>
-    </div>
-    <div class="header-actions">
-        <div class="dropdown me-2">
-            <button class="btn btn-primary dropdown-toggle" type="button" id="addRecordDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-plus"></i> Add Record
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="addRecordDropdown">
-                <li><a class="dropdown-item" href="{% url 'add_visit' patient.id %}"><i class="fas fa-calendar-check"></i> Add Visit</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_adls' patient.id %}"><i class="fas fa-tasks"></i> Add ADL</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_diagnosis' patient.id %}"><i class="fas fa-stethoscope"></i> Add Diagnosis</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_measurements' patient.id %}"><i class="fas fa-weight"></i> Add Measurement</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_medications' patient.id %}"><i class="fas fa-pills"></i> Add Medication</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_symptoms' patient.id %}"><i class="fas fa-thermometer-half"></i> Add Symptom</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_imaging' patient.id %}"><i class="fas fa-x-ray"></i> Add Imaging</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_cmp_labs' patient.id %}"><i class="fas fa-flask"></i> Add CMP Labs</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_cbc_labs' patient.id %}"><i class="fas fa-vial"></i> Add CBC Labs</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_occurrence' patient.id %}"><i class="fas fa-exclamation-circle"></i> Add Occurrence</a></li>
-                <li><a class="dropdown-item" href="{% url 'add_record_request' patient.id %}"><i class="fas fa-file-medical"></i> Add Record Request</a></li>
-            </ul>
-        </div>
-        <div class="dropdown">
-            <button class="btn btn-secondary dropdown-toggle" type="button" id="recordDetailsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                Record Details
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="recordDetailsDropdown">
-                <li><a class="dropdown-item" href="#" data-section="visits"><i class="fas fa-calendar-check"></i> Visits</a></li>
-                <li><a class="dropdown-item" href="#" data-section="adls"><i class="fas fa-tasks"></i> ADLs</a></li>
-                <li><a class="dropdown-item" href="#" data-section="diagnoses"><i class="fas fa-stethoscope"></i> Diagnoses</a></li>
-                <li><a class="dropdown-item" href="#" data-section="cmp_labs"><i class="fas fa-flask"></i> CMP Labs</a></li>
-                <li><a class="dropdown-item" href="#" data-section="cbc_labs"><i class="fas fa-vial"></i> CBC Labs</a></li>
-                <li><a class="dropdown-item" href="#" data-section="vitals"><i class="fas fa-heartbeat"></i> Vital Signs</a></li>
-                <li><a class="dropdown-item" href="#" data-section="measurements"><i class="fas fa-weight"></i> Measurements</a></li>
-                <li><a class="dropdown-item" href="#" data-section="medications"><i class="fas fa-pills"></i> Medications</a></li>
-                <li><a class="dropdown-item" href="#" data-section="symptoms"><i class="fas fa-thermometer-half"></i> Symptoms</a></li>
-                <li><a class="dropdown-item" href="#" data-section="imaging"><i class="fas fa-x-ray"></i> Imaging</a></li>
-                <li><a class="dropdown-item" href="#" data-section="occurrences"><i class="fas fa-exclamation-circle"></i> Occurrences</a></li>
-                <li><a class="dropdown-item" href="#" data-section="record_requests"><i class="fas fa-file-medical"></i> Record Requests</a></li>
-            </ul>
+            <span>•</span>
+            <span>ID: {{ patient.patient_number }}</span>
         </div>
     </div>
 </div>
 
 <div class="content-wrapper">
     <div class="main-content">
-        <div id="patientOverview" class="overview-section">
-            {% include 'patient_records/partials/_patient_overview.html' %}
-        </div>
-        
-        <div id="patientDashboard" class="dashboard-section">
-            <div class="dashboard-header">
-                <h2>Patient Overview Dashboard</h2>
-                <div class="date-range">
-                    <button class="btn btn-secondary all-time-btn">All Time</button>
-                    <input type="date" class="form-control" id="startDate">
-                    <span>to</span>
-                    <input type="date" class="form-control" id="endDate">
-                    <button class="btn btn-primary refresh-btn">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
+        <div class="records-grid">
+            <!-- Vitals -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-heartbeat"></i> Vitals</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_vitals' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="vitals">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if recent_vitals %}
+                    {% for vital in recent_vitals|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ vital.id }}">
+                        <div class="record-date">{{ vital.date|date:"M d, Y" }}</div>
+                        <div>BP: {{ vital.blood_pressure }}</div>
+                        <div>Pulse: {{ vital.pulse }} bpm</div>
+                        <div>Temp: {{ vital.temperature }}°F</div>
+                        <div>O2 Sat: {{ vital.spo2 }}%</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No vitals recorded</p>
+                    {% endif %}
                 </div>
             </div>
 
-            <div class="dashboard-grid">
-                <!-- Key Metrics Section -->
-                <div class="metric-card">
-                    <h3>Total Visits</h3>
-                    <div class="metric-value" data-metric="total_visits">11</div>
-                </div>
-                
-                <div class="metric-card">
-                    <h3>Active Medications</h3>
-                    <div class="metric-value" data-metric="active_medications">11</div>
-                </div>
-                
-                <div class="metric-card">
-                    <h3>Recent Labs</h3>
-                    <div class="metric-value" data-metric="recent_labs">1</div>
-                </div>
-                
-                <div class="metric-card">
-                    <h3>Pending Tasks</h3>
-                    <div class="metric-value" data-metric="pending_tasks">0</div>
-                </div>
-
-                <div class="metric-card">
-                    <h3>Heart Rate</h3>
-                    <div class="metric-value" data-metric="hr">72</div>
-                </div>
-
-                <div class="metric-card">
-                    <h3>Glucose</h3>
-                    <div class="metric-value" data-metric="glucose">78.00 mg/dL</div>
-                </div>
-
-                <div class="metric-card">
-                    <h3>WBC</h3>
-                    <div class="metric-value" data-metric="wbc">7.63 K/µL</div>
-                </div>
-
-                <div class="metric-card">
-                    <h3>Weight</h3>
-                    <div class="metric-value" data-metric="weight">--</div>
-                </div>
-
-                <div class="metric-card">
-                    <h3>Blood Pressure</h3>
-                    <div class="metric-value" data-metric="bp">139/69</div>
-                </div>
-
-                <div class="metric-card">
-                    <h3>BMI</h3>
-                    <div class="metric-value" data-metric="bmi">--</div>
-                </div>
-
-                <!-- Vitals Chart Section -->
-                <section class="chart-card">
-                    <h3>Recent Vital Signs</h3>
-                    <div class="chart-container">
-                        <canvas id="vitalsTrendChart"></canvas>
+            <!-- Medications -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-pills"></i> Medications</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_medications' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="medications">View All</a>
                     </div>
-                </section>
-
-                <!-- Recent Activity Section -->
-                <section class="activity-card">
-                    <h3>Recent Activity</h3>
-                    <div class="activity-list">
-                        {% for activity in recent_activities %}
-                        <div class="activity-item">
-                            <span class="activity-time">{{ activity.timestamp|date:"M d, Y H:i" }}</span>
-                            <span class="activity-type">{{ activity.action }}</span>
-                        </div>
-                        {% empty %}
-                        <p>No recent activity</p>
-                        {% endfor %}
+                </div>
+                <div class="record-list">
+                    {% if current_medications %}
+                    {% for med in current_medications|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ med.id }}">
+                        <div class="record-date">{{ med.date_prescribed|date:"M d, Y" }}</div>
+                        <strong>{{ med.drug }}</strong> {{ med.dose }}
+                        <div>{{ med.frequency }}</div>
                     </div>
-                </section>
-
-                <!-- Alerts Section -->
-                <section class="alerts-card">
-                    <h3>Alerts</h3>
-                    <div class="alerts-list">
-                        {% for alert in alerts %}
-                        <div class="alert-item alert-{{ alert.severity }}">
-                            <i class="fas fa-exclamation-circle"></i>
-                            <span class="alert-message">{{ alert.message }}</span>
-                        </div>
-                        {% empty %}
-                        <p>No active alerts</p>
-                        {% endfor %}
-                    </div>
-                </section>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No medications recorded</p>
+                    {% endif %}
+                </div>
             </div>
-        </div>
 
-        <div id="detailContent" class="detail-content" style="display: none;">
-            <!-- Dynamic content will be loaded here -->
+            <!-- Diagnoses -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-stethoscope"></i> Diagnoses</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_diagnosis' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="diagnoses">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if active_diagnoses %}
+                    {% for diagnosis in active_diagnoses|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ diagnosis.id }}">
+                        <div class="record-date">{{ diagnosis.date|date:"M d, Y" }}</div>
+                        <strong>{{ diagnosis.diagnosis }}</strong>
+                        <div>{{ diagnosis.icd_code }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No diagnoses recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Lab Results - CBC -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-vial"></i> CBC Labs</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_cbc_labs' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="cbc_labs">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if cbc_labs %}
+                    {% for lab in cbc_labs|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ lab.id }}">
+                        <div class="record-date">{{ lab.date|date:"M d, Y" }}</div>
+                        <div>WBC: {{ lab.wbc }}</div>
+                        <div>RBC: {{ lab.rbc }}</div>
+                        <div>HGB: {{ lab.hemoglobin }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No CBC labs recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Lab Results - CMP -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-vial"></i> CMP Labs</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_cmp_labs' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="cmp_labs">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if cmp_labs %}
+                    {% for lab in cmp_labs|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ lab.id }}">
+                        <div class="record-date">{{ lab.date|date:"M d, Y" }}</div>
+                        <div>Sodium: {{ lab.sodium }}</div>
+                        <div>Potassium: {{ lab.potassium }}</div>
+                        <div>Glucose: {{ lab.glucose }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No CMP labs recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Symptoms -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-notes-medical"></i> Symptoms</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_symptoms' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="symptoms">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if symptoms %}
+                    {% for symptom in symptoms|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ symptom.id }}">
+                        <div class="record-date">{{ symptom.date|date:"M d, Y" }}</div>
+                        <strong>{{ symptom.symptom }}</strong>
+                        {% if symptom.severity %}
+                        <div>Severity: {{ symptom.get_severity_display }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No symptoms recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Visits -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-hospital"></i> Visits</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_visit' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="visits">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if visits %}
+                    {% for visit in visits|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ visit.id }}">
+                        <div class="record-date">{{ visit.date|date:"M d, Y" }}</div>
+                        <strong>{{ visit.visit_type }}</strong>
+                        <div>{{ visit.provider }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No visits recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Measurements -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-weight"></i> Measurements</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_measurements' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="measurements">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if measurements %}
+                    {% for measurement in measurements|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ measurement.id }}">
+                        <div class="record-date">{{ measurement.date|date:"M d, Y" }}</div>
+                        <div>Weight: {{ measurement.weight }} lbs</div>
+                        {% if measurement.pps %}
+                        <div>PPS: {{ measurement.pps }}%</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No measurements recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- ADLs -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-tasks"></i> ADLs</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_adls' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="adls">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if adls %}
+                    {% for adl in adls|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ adl.id }}">
+                        <div class="record-date">{{ adl.date|date:"M d, Y" }}</div>
+                        <div>Ambulation: {{ adl.get_ambulation_display }}</div>
+                        <div>Feeding: {{ adl.get_feeding_display }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No ADLs recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Imaging -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-x-ray"></i> Imaging</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_imaging' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="imaging">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if imaging %}
+                    {% for image in imaging|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ image.id }}">
+                        <div class="record-date">{{ image.date|date:"M d, Y" }}</div>
+                        <strong>{{ image.type }}</strong>
+                        <div>{{ image.body_part }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No imaging recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Occurrences -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-exclamation-circle"></i> Occurrences</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_occurrence' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="occurrences">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if occurrences %}
+                    {% for occurrence in occurrences|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ occurrence.id }}">
+                        <div class="record-date">{{ occurrence.date|date:"M d, Y" }}</div>
+                        <strong>{{ occurrence.occurrence_type }}</strong>
+                        <div>{{ occurrence.description|truncatechars:100 }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No occurrences recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Record Requests -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-file-medical"></i> Record Requests</h3>
+                    <div class="record-actions">
+                        <a href="{% url 'add_record_request' patient.id %}" class="btn-add">
+                            <i class="fas fa-plus"></i> Add
+                        </a>
+                        <a href="#" class="btn-view-all" data-section="record_requests">View All</a>
+                    </div>
+                </div>
+                <div class="record-list">
+                    {% if record_requests %}
+                    {% for request in record_requests|slice:":5" %}
+                    <div class="record-item" data-record-id="{{ request.id }}">
+                        <div class="record-date">{{ request.date|date:"M d, Y" }}</div>
+                        <strong>{{ request.request_type }}</strong>
+                        <div>Status: {{ request.get_status_display }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No record requests</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="record-card">
+                <div class="record-card-header">
+                    <h3><i class="fas fa-history"></i> Recent Activities</h3>
+                </div>
+                <div class="record-list">
+                    {% if recent_activities %}
+                    {% for activity in recent_activities|slice:":5" %}
+                    <div class="record-item">
+                        <div class="record-date">{{ activity.timestamp|date:"M d, Y H:i" }}</div>
+                        <div>{{ activity.action }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">No recent activities</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
     
@@ -213,9 +541,32 @@
 
 {% block extra_js %}
 <script src="{% static 'js/patient_detail.js' %}"></script>
-<script src="{% static 'js/notes.js' %}"></script>
-<script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
-<script src="{% static 'js/dashboard.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle record item clicks
+    document.querySelectorAll('.record-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const recordId = this.dataset.recordId;
+            const recordType = this.closest('.record-card')
+                                 .querySelector('h3')
+                                 .textContent.trim()
+                                 .toLowerCase()
+                                 .replace(/\s+/g, '_')  // Convert "CBC Labs" to "cbc_labs"
+                                 .replace(/\s*labs$/i, '_labs');  // Ensure "Labs" becomes "_labs"
+            if (recordId) {
+                window.location.href = `/patient/record/${recordType}/${recordId}/`;
+            }
+        });
+    });
+
+    // Handle view all clicks
+    document.querySelectorAll('.btn-view-all').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const section = this.dataset.section;
+            window.location.href = `/patient/{{ patient.id }}/records/${section}/`;
+        });
+    });
+});
+</script>
 {% endblock %}
